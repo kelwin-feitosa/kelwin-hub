@@ -139,15 +139,28 @@ def test_scheduler_catches_up_after_restart(tmp_path):
                 ((datetime.now(timezone.utc)-timedelta(days=10)).isoformat(timespec='seconds'), opp))
     config['scheduler'] = True
     with TestClient(create_app(db, **config)) as restarted:
-        deadline = time.monotonic()+3
+        # The alert and the scheduler heartbeat are committed separately.
+        # Seeing the alert does not guarantee the background tick has finished.
+        deadline = time.monotonic() + 5
+        count = 0
+        health = None
         while time.monotonic() < deadline:
             with restarted.app.state.store.connection() as conn:
-                count = conn.execute('SELECT COUNT(*) FROM alerts WHERE status=?', ('open',)).fetchone()[0]
-            if count: break
+                count = conn.execute(
+                    'SELECT COUNT(*) FROM alerts WHERE status=?', ('open',)
+                ).fetchone()[0]
+                health = conn.execute(
+                    'SELECT last_check_at, last_success_at, last_failure_type '
+                    'FROM scheduler_health WHERE id=1'
+                ).fetchone()
+            if count == 1 and health and health['last_success_at']:
+                break
             time.sleep(.05)
         assert count == 1
-        with restarted.app.state.store.connection() as conn:
-            assert conn.execute('SELECT last_check_at FROM scheduler_health').fetchone()[0]
+        assert health is not None
+        assert health['last_check_at'] is not None
+        assert health['last_success_at'] is not None
+        assert health['last_failure_type'] is None
 
 
 def test_scheduler_failure_is_recorded_without_sensitive_message(tmp_path, monkeypatch, caplog):

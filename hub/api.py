@@ -4,6 +4,7 @@ from datetime import datetime, timezone, timedelta
 from decimal import Decimal, InvalidOperation
 import asyncio
 import hmac
+import logging
 import os
 from pathlib import Path
 import sqlite3
@@ -13,12 +14,13 @@ from zoneinfo import ZoneInfo
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from .security import csrf_token, hash_password, sign_session, validate_session, verify_password, SESSION_SECONDS
 from .storage import Store, now_utc, new_id, rows, record
 from .automation import TEMPLATES, safe_run_stale
 
+LOG = logging.getLogger(__name__)
 STATIC = Path(__file__).parent / 'static'
 LOCAL_TZ = ZoneInfo('America/Sao_Paulo')
 
@@ -59,12 +61,26 @@ def normalized_email(raw: str | None):
 class Strict(BaseModel):
     model_config = ConfigDict(extra='forbid')
 
+
+def required_text(value: str) -> str:
+    """Normalize Unicode whitespace and refuse empty user-facing required fields."""
+    normalized = value.strip()
+    if not normalized:
+        raise ValueError('Campo obrigatório não pode ficar vazio')
+    return normalized
+
+
 class Login(Strict):
     password: str
 
 class ProjectIn(Strict):
     name: str = Field(min_length=1,max_length=150)
     area: str = Field(default='pessoal',min_length=1,max_length=80)
+
+    @field_validator('name', 'area')
+    @classmethod
+    def required(cls, value: str) -> str:
+        return required_text(value)
 
 class ProjectUpdate(Strict):
     name: str | None = Field(default=None,min_length=1,max_length=150)
@@ -80,12 +96,22 @@ class ContactUpdate(Strict):
 
 class ContactIn(Strict):
     name: str = Field(min_length=1,max_length=150)
+
+    @field_validator('name')
+    @classmethod
+    def required(cls, value: str) -> str:
+        return required_text(value)
     company: str = Field(default='',max_length=150)
     email: str | None = Field(default=None,max_length=254)
     phone: str = Field(default='',max_length=60)
     category: str = Field(default='business',max_length=80)
 
 class OpportunityIn(Strict):
+    @field_validator('title', 'next_action')
+    @classmethod
+    def required(cls, value: str) -> str:
+        return required_text(value)
+
     contact_id: str
     title: str = Field(min_length=1,max_length=180)
     kind: str = Field(default='service',max_length=80)
@@ -102,6 +128,11 @@ class OpportunityUpdate(Strict):
 
 class TaskIn(Strict):
     title: str = Field(min_length=1,max_length=200)
+
+    @field_validator('title')
+    @classmethod
+    def required(cls, value: str) -> str:
+        return required_text(value)
     project_id: str | None = None
     opportunity_id: str | None = None
     priority: int = Field(default=1,ge=0,le=3)
@@ -117,6 +148,11 @@ class TaskUpdate(Strict):
 
 class EventIn(Strict):
     title: str = Field(min_length=1,max_length=180)
+
+    @field_validator('title')
+    @classmethod
+    def required(cls, value: str) -> str:
+        return required_text(value)
     start_at: str
     end_at: str
     status: str = 'confirmed'
@@ -142,17 +178,32 @@ def create_app(database_path: str | None = None, *, password_hash: str | None = 
     attempts: dict[str,list[float]] = {}
     scheduler_on = scheduler if scheduler is not None else os.getenv('HUB_SCHEDULER','1') == '1'
 
+    def scheduler_tick():
+        """One catch-up step: on startup/run it checks persisted due time."""
+        try:
+            with store.connection() as db:
+                conf = db.execute("SELECT last_run_at,enabled FROM automation_configs WHERE code='stale_opportunities'").fetchone()
+            if conf and conf['enabled'] and (
+                not conf['last_run_at'] or
+                datetime.now(timezone.utc) - datetime.fromisoformat(conf['last_run_at']) >= timedelta(minutes=30)
+            ):
+                safe_run_stale(store)
+            with store.transaction() as db:
+                db.execute("UPDATE scheduler_health SET last_check_at=?,last_success_at=?,last_failure_type=NULL WHERE id=1",
+                           (now_utc(), now_utc()))
+        except Exception as exc:
+            # Never record exception messages: they might contain user data/SQL.
+            LOG.warning('scheduler_tick_failed type=%s', type(exc).__name__)
+            try:
+                with store.transaction() as db:
+                    db.execute('UPDATE scheduler_health SET last_check_at=?,last_failure_at=?,last_failure_type=? WHERE id=1',
+                               (now_utc(),now_utc(),type(exc).__name__))
+            except Exception as persist_exc:
+                LOG.warning('scheduler_health_unavailable type=%s', type(persist_exc).__name__)
+
     async def scheduled():
         while True:
-            try:
-                with store.connection() as db:
-                    conf = db.execute("SELECT last_run_at,enabled FROM automation_configs WHERE code='stale_opportunities'").fetchone()
-                if conf and conf['enabled'] and (
-                   not conf['last_run_at'] or datetime.now(timezone.utc) - datetime.fromisoformat(conf['last_run_at']) >= timedelta(minutes=30)):
-                    safe_run_stale(store)
-            except Exception:
-                # Do not log personal records or secrets; surfaced through health check in a later iteration.
-                pass
+            await asyncio.to_thread(scheduler_tick)
             await asyncio.sleep(60)
 
     @asynccontextmanager
@@ -172,8 +223,17 @@ def create_app(database_path: str | None = None, *, password_hash: str | None = 
     app.state.store = store
     app.mount('/static', StaticFiles(directory=str(STATIC)), name='static')
 
-    def require_login(req: Request):
+    def active_nonce(req: Request) -> str | None:
         nonce = validate_session(secret, req.cookies.get('kh_session'))
+        if not nonce:
+            return None
+        with store.connection() as db:
+            active = db.execute('SELECT 1 FROM sessions WHERE nonce=? AND revoked_at IS NULL AND expires_at>?',
+                                (nonce, int(time.time()))).fetchone()
+        return nonce if active else None
+
+    def require_login(req: Request):
+        nonce = active_nonce(req)
         if not nonce:
             raise HTTPException(401,'Faça login para acessar o Hub')
         if req.method in {'POST','PUT','PATCH','DELETE'}:
@@ -208,7 +268,12 @@ def create_app(database_path: str | None = None, *, password_hash: str | None = 
 
     @app.get('/healthz')
     def health():
-        return {'status':'ok','component':'hub','n8n':'not_checked'}
+        try:
+            with store.connection() as db:
+                db.execute('SELECT 1').fetchone()
+            return {'status':'ok','component':'hub','n8n':'not_checked'}
+        except sqlite3.Error:
+            return JSONResponse(status_code=503, content={'status':'degraded','component':'hub'})
 
     @app.post('/api/login')
     def login(data: Login, req: Request, response: Response):
@@ -221,17 +286,25 @@ def create_app(database_path: str | None = None, *, password_hash: str | None = 
             attempts[addr].append(current)
             raise HTTPException(401,'Senha incorreta')
         attempts.pop(addr,None)
-        response.set_cookie('kh_session',sign_session(secret),max_age=SESSION_SECONDS,
+        cookie = sign_session(secret)
+        nonce = validate_session(secret, cookie)
+        with store.transaction() as db:
+            db.execute('DELETE FROM sessions WHERE expires_at<=?', (int(time.time()),))
+            db.execute('INSERT INTO sessions(nonce,created_at,expires_at) VALUES (?,?,?)',
+                       (nonce,now_utc(),int(time.time())+SESSION_SECONDS))
+        response.set_cookie('kh_session',cookie,max_age=SESSION_SECONDS,
                             httponly=True,samesite='strict',secure=os.getenv('HUB_COOKIE_SECURE')=='1',path='/')
         return {'ok':True}
 
     @app.get('/api/session')
     def session(req: Request):
-        nonce = validate_session(secret,req.cookies.get('kh_session'))
+        nonce = active_nonce(req)
         return {'authenticated':bool(nonce),'csrf':csrf_token(secret,nonce) if nonce else None}
 
     @app.post('/api/logout')
-    def logout(response: Response, _=Depends(require_login)):
+    def logout(response: Response, nonce=Depends(require_login)):
+        with store.transaction() as db:
+            db.execute('UPDATE sessions SET revoked_at=? WHERE nonce=? AND revoked_at IS NULL', (now_utc(),nonce))
         response.delete_cookie('kh_session',path='/')
         return {'ok':True}
 
@@ -271,7 +344,7 @@ def create_app(database_path: str | None = None, *, password_hash: str | None = 
         updates=data.model_dump(exclude_unset=True)
         if not updates:
             raise HTTPException(422,'Nenhuma alteração informada')
-        if updates.get('status') and updates['status'] not in ('active','paused','completed','archived'):
+        if 'status' in updates and updates['status'] not in ('active','paused','completed','archived'):
             raise HTTPException(422,'Status inválido')
         for key in ('name','area'):
             if key in updates and (updates[key] is None or not updates[key].strip()):
@@ -350,6 +423,8 @@ def create_app(database_path: str | None = None, *, password_hash: str | None = 
             updates['title']=updates['title'].strip()
         if 'next_action' in updates:
             if updates['next_action'] is None:raise HTTPException(422,'Próxima ação inválida')
+            if not updates['next_action'].strip():
+                raise HTTPException(422,'Próxima ação não pode ficar vazia')
             updates['next_action']=updates['next_action'].strip()
         if 'followup_at' in updates:updates['followup_at']=timestamp(updates['followup_at'])
         if 'value_brl' in updates:updates['value_cents']=money(updates.pop('value_brl'))
@@ -467,6 +542,14 @@ def create_app(database_path: str | None = None, *, password_hash: str | None = 
         if not internal or not hmac.compare_digest(req.headers.get('x-hub-internal-token',''),internal):
             raise HTTPException(401,'Não autorizado')
         return safe_run_stale(store)
+
+    @app.get('/api/automation-health')
+    def automation_health(_=Depends(require_login)):
+        with store.connection() as db:
+            health = db.execute('SELECT * FROM scheduler_health WHERE id=1').fetchone()
+            config = db.execute("SELECT enabled,last_run_at FROM automation_configs WHERE code='stale_opportunities'").fetchone()
+        return {**dict(health), 'scheduler_enabled':scheduler_on,
+                'automation_enabled':bool(config['enabled']), 'last_run_at':config['last_run_at']}
 
     @app.get('/api/automation-runs')
     def runs(_=Depends(require_login)):

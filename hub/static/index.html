@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="Kelwin Hub — central pessoal local de oportunidades e automações">
+  <title>Kelwin Hub · Central pessoal</title>
+  <link rel="stylesheet" href="/static/app.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <div class="shell" id="shell" hidden>
+    <aside class="sidebar" aria-label="Navegação principal">
+      <div class="brand"><span class="brand-mark">K</span><div><strong>Kelwin Hub</strong><small>Central pessoal</small></div></div>
+      <nav id="nav" aria-label="Seções">
+        <button type="button" class="nav-item active" data-tab="today"><span aria-hidden="true">◈</span> Hoje</button>
+        <button type="button" class="nav-item" data-tab="tasks"><span aria-hidden="true">☑</span> Tarefas</button>
+        <button type="button" class="nav-item" data-tab="projects"><span aria-hidden="true">▤</span> Projetos</button>
+        <button type="button" class="nav-item" data-tab="contacts"><span aria-hidden="true">♙</span> Contatos</button>
+        <button type="button" class="nav-item" data-tab="opportunities"><span aria-hidden="true">◇</span> Oportunidades</button>
+        <button type="button" class="nav-item" data-tab="events"><span aria-hidden="true">▦</span> Agenda</button>
+        <button type="button" class="nav-item" data-tab="automations"><span aria-hidden="true">↗</span> Automações</button>
+      </nav>
+      <div class="sidebar-foot"><span class="local-dot"></span> Seus dados ficam no computador<br><button type="button" id="logout" class="link-button">Sair da sessão</button></div>
+    </aside>
+    <div class="main-wrap">
+      <header class="topbar">
+        <div><div class="eyebrow">MEU ESPAÇO</div><h1 id="pageTitle">Hoje</h1></div>
+        <div class="top-actions"><button type="button" class="ghost" id="export" title="Exportar registros em JSON">Exportar</button><button type="button" class="ghost" id="theme" aria-label="Alternar tema">◐</button><span class="user-chip">● Local</span></div>
+      </header>
+      <main id="content" class="content" tabindex="-1"><p class="muted">Carregando...</p></main>
+      <footer class="footer">Kelwin Hub · piloto local 0.1 · Nenhum envio automático a terceiros</footer>
+    </div>
+  </div>
+  <section id="login-screen" class="login-screen" hidden>
+    <div class="login-card"><div class="login-icon">K</div><div class="eyebrow">SEU ESPAÇO PRIVADO</div>
+      <h1>Bem-vindo ao Hub</h1><p>Organize seus projetos, clientes e automações em um só lugar.</p>
+      <form id="login-form"><label for="password">Senha de acesso</label><input id="password" type="password" autocomplete="current-password" required minlength="12"><button type="submit" class="primary wide">Entrar no Kelwin Hub</button><p id="login-error" role="alert" class="form-error"></p></form>
+      <small>Servidor local · acesso protegido</small>
+    </div>
+  </section>
+  <dialog id="dialog" aria-label="Formulário"><form method="dialog" id="dynamic-form"><div id="dialog-body"></div><div class="dialog-actions"><button type="button" class="ghost" id="cancel-dialog">Cancelar</button><button type="submit" class="primary">Salvar</button></div><p class="form-error" id="dialog-error" role="alert"></p></form></dialog>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+</body>
+</html>

@@ -586,3 +586,4 @@ def create_app(database_path: str | None = None, *, password_hash: str | None = 
             return rows(db.execute('SELECT * FROM audit ORDER BY at DESC LIMIT 50'))
 
     return app
+

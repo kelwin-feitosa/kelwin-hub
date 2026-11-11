@@ -1,0 +1,11 @@
+.env
+.venv/
+__pycache__/
+.pytest_cache/
+.coverage
+*.pyc
+data/
+backups/
+*.db
+*.db-*
+.DS_Store

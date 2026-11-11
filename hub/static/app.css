@@ -6,3 +6,80 @@
 @media(max-width:700px){.shell{display:block}.sidebar{width:100%;height:auto;position:static;padding:10px 10px 0;border-right:0;border-bottom:1px solid var(--border)}.brand{padding:4px 10px 10px}.brand-mark{width:32px;height:32px;font-size:20px}.brand strong{font-size:15px}.sidebar nav{display:flex;gap:2px;overflow-x:auto;padding-bottom:8px}.nav-item{flex:0 0 auto;padding:9px 11px;font-size:12px;gap:6px}.nav-item span{font-size:16px;width:16px}.sidebar-foot{display:none}.topbar{padding:18px 17px;height:78px}.topbar h1{font-size:25px}.content{padding:23px 14px 36px;gap:18px}.stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.stat{padding:14px}.stat strong{font-size:23px}.panel{padding:17px}.section-head{align-items:start}.footer{padding:0 16px 24px}.table th,.table td{padding:10px 7px}.user-chip{display:none}.login-card{padding:28px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 [hidden]{display:none!important}
+
+/* Kelwin Hub 10 — mesa editorial: context and action before counters/cards. */
+:root{--bg:#f7f6f2;--panel:#fffefa;--panel2:#eef3ef;--text:#20332b;--muted:#5e7067;--border:#d8e2da;--accent:#176b59;--accent2:#105341;--shadow:0 3px 16px #182c4910;color:var(--text);background:var(--bg)}
+:root[data-theme="dark"]{color-scheme:dark;--bg:#17211e;--panel:#202c27;--panel2:#2a3b33;--text:#eef5ee;--muted:#b3c7b9;--border:#3c5548;--accent:#8be0bd;--accent2:#b3efd4;--shadow:0 5px 22px #0003}
+body{background:var(--bg)}
+.brand-mark,.login-icon{background:#176b59;border-radius:11px;font-family:Georgia,serif;font-weight:700}
+.sidebar{width:215px;flex-basis:215px;background:var(--bg);padding:22px 14px;border-right:1px solid var(--border)}
+.brand{padding:4px 10px 32px}
+.nav-heading{display:block;font-size:10px;letter-spacing:1.5px;font-weight:800;color:var(--muted);padding:13px 14px 6px}
+.sidebar nav{gap:3px}
+.nav-item{border-radius:9px;padding:10px 12px;color:var(--muted);font-weight:550}
+.nav-item.active{background:var(--panel2);box-shadow:none;color:var(--accent)}
+.nav-item.active::before{content:"";width:5px;height:5px;border-radius:100%;background:currentColor;margin-right:-6px}
+.topbar{background:transparent;border-bottom:0;height:102px;padding:25px max(24px,4.5vw) 8px}
+.topbar h1{font-size:24px;font-weight:660;letter-spacing:-.8px}
+.topbar .eyebrow{color:var(--muted)}
+.content{max-width:1390px;padding:20px max(24px,4.5vw) 55px;gap:20px}
+.primary{background:#176b59;border-color:#176b59;color:#fff;box-shadow:none}
+.primary:hover{background:#105341}
+.primary:disabled{opacity:.6;cursor:wait}
+:root[data-theme="dark"] .primary{background:#8be0bd;color:#102c20;border-color:#8be0bd}
+:root[data-theme="dark"] .primary:hover{background:#b3efd4}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid #d99846;outline-offset:3px}
+:root[data-theme="dark"] button:focus-visible,:root[data-theme="dark"] input:focus-visible,:root[data-theme="dark"] select:focus-visible{outline-color:#f5bd73}
+.panel,.stat{box-shadow:none;border-radius:13px}
+.user-chip{background:var(--panel);border:1px solid var(--border)}
+.login-screen{background:radial-gradient(ellipse at top left,#b4d1bb40,transparent 55%),var(--bg)}
+.login-card{box-shadow:var(--shadow)}
+
+/* Main experience: a reading surface, not a conventional KPI dashboard. */
+.work-hero{max-width:850px;padding:14px 0 17px}
+.work-hero .eyebrow{color:var(--accent);font-size:11px}
+.work-hero h2{font-family:Georgia,"Times New Roman",serif;font-weight:400;font-size:clamp(32px,3.7vw,52px);letter-spacing:-1.5px;line-height:1.16;margin:14px 0 12px}
+.work-hero>p:last-child{font-size:15px;color:var(--muted);max-width:610px;line-height:1.65}
+.quick-capture{display:grid;gap:13px;padding:22px 25px 16px;background:var(--panel);border:1px solid var(--border);border-left:4px solid var(--accent);border-radius:11px}
+.quick-primary>label{display:block;font-size:12px;font-weight:760;color:var(--accent);margin-bottom:10px}
+.quick-input-row{display:flex;gap:10px}
+.quick-input-row input{flex:1;min-width:0;padding:13px 15px;border:1px solid var(--border);border-radius:9px;background:var(--bg);color:var(--text);font-size:15px}
+.quick-input-row .primary{white-space:nowrap;padding:10px 19px}
+.quick-details{display:flex;gap:16px;flex-wrap:wrap;align-items:center}
+.quick-details label{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted);font-weight:550}
+.quick-details select,.quick-details input{max-width:260px;min-width:0;border:1px solid var(--border);background:var(--panel);color:var(--text);border-radius:8px;padding:7px 10px;font-size:12px}
+.quick-capture .form-error:empty{display:none}
+.work-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(215px,280px);gap:44px;padding-top:19px;align-items:start}
+.work-main{min-width:0}
+.work-section{margin-bottom:32px}
+.work-section-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-bottom:12px;border-bottom:2px solid var(--border)}
+.work-section-heading h3{font-size:19px;font-weight:720;letter-spacing:-.5px}
+.work-section-heading p{font-size:12px;margin-top:3px;color:var(--muted)}
+.work-counter{border:1px solid var(--border);border-radius:99px;padding:2px 9px;font-size:12px;font-weight:700;color:var(--muted);font-variant-numeric:tabular-nums}
+.work-entry{display:flex;justify-content:space-between;align-items:start;gap:19px;padding:19px 2px;border-bottom:1px solid var(--border)}
+.work-entry-main{min-width:0}
+.work-entry h4{font-size:16px;line-height:1.4;letter-spacing:-.3px;margin:7px 0 4px;overflow-wrap:anywhere}
+.work-meta{display:flex;flex-wrap:wrap;gap:6px;color:var(--muted);font-size:11px;line-height:1.55}
+.work-context{color:var(--accent);font-weight:630}
+.work-next{font-size:13px;color:var(--muted);line-height:1.55;margin-top:4px}
+.work-entry-actions{display:flex;flex:0 0 auto;gap:7px;align-items:center;flex-wrap:wrap;justify-content:flex-end;padding-top:9px}
+.work-entry .mini{border-color:var(--accent);color:var(--accent);font-weight:700;background:transparent}
+.work-entry .mini:hover{background:var(--panel2)}
+.text-action,.context-link{border:0;background:transparent;padding:5px 2px;color:var(--accent);font-size:12px;text-decoration:underline;text-underline-offset:3px}
+.text-action:hover,.context-link:hover{color:var(--accent2)}
+.work-links{display:flex;gap:12px;flex-wrap:wrap;margin-top:7px}
+.work-empty{font-size:13px;color:var(--muted);padding:20px 0}
+.work-aside{display:grid;gap:22px;border-left:1px solid var(--border);padding:8px 0 0 27px}
+.work-aside section{display:grid;gap:8px}
+.work-aside h3{font-size:13px;color:var(--text);font-weight:750;padding-bottom:10px;border-bottom:1px solid var(--border)}
+.work-compact{display:grid;gap:2px;padding:8px 0;border-bottom:1px solid var(--border)}
+.work-compact strong{font-size:12px;line-height:1.5}
+.work-compact small{color:var(--muted);font-size:11px}
+.work-compact .text-action{justify-self:start}
+.work-aside .blank{padding:8px 0}
+.work-footnote{font-size:11px;color:var(--muted);line-height:1.7}
+:root[data-theme="dark"] .work-entry .mini{border-color:#8be0bd;color:#8be0bd}
+@media(max-width:1080px){.work-layout{grid-template-columns:minmax(0,1fr) 220px;gap:24px}}
+@media(max-width:860px){.work-layout{grid-template-columns:1fr;gap:12px}.work-aside{border-left:0;border-top:1px solid var(--border);padding:22px 0 0;grid-template-columns:1fr 1fr}.work-footnote{grid-column:1/-1}}
+@media(max-width:700px){.sidebar{width:100%;height:auto;position:static;padding:10px;border-right:0}.nav-heading{display:none}.topbar{padding:18px 17px;height:78px}.content{padding:10px 17px 38px}.work-hero{padding:12px 0 6px}.work-hero h2{letter-spacing:-1px}.quick-capture{padding:16px}.work-entry{display:grid;gap:9px}.work-entry-actions{justify-content:flex-start;padding:0}.work-aside{grid-template-columns:1fr}.quick-details{align-items:stretch;flex-direction:column;gap:9px}.quick-details label{justify-content:space-between}.quick-details input,.quick-details select{width:64%;max-width:none}.quick-input-row input{font-size:14px}}
+@media(max-width:430px){.quick-input-row{flex-direction:column}.quick-input-row .primary{width:100%}}

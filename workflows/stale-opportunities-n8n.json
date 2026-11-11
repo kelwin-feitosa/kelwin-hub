@@ -1,0 +1,10 @@
+{
+  "name": "Kelwin Hub — verificar oportunidades sem retorno (opcional)",
+  "nodes": [
+    {"parameters":{"rule":{"interval":[{"field":"hours","hoursInterval":6}]}},"id":"8b2fa283-68d2-4de8-9d44-1ca8b397f3dd","name":"A cada 6 horas","type":"n8n-nodes-base.scheduleTrigger","typeVersion":1.2,"position":[260,300]},
+    {"parameters":{"method":"POST","url":"http://hub:8000/api/internal/automations/stale_opportunities/run","authentication":"genericCredentialType","genericAuthType":"httpHeaderAuth","options":{"timeout":15000}},"id":"a8f2884e-cac8-43db-9a08-83a56dc6f86d","name":"Executar no Hub","type":"n8n-nodes-base.httpRequest","typeVersion":4.2,"position":[520,300]}
+  ],
+  "connections":{"A cada 6 horas":{"main":[[{"node":"Executar no Hub","type":"main","index":0}]]}},
+  "settings":{"executionOrder":"v1"},
+  "active":false
+}

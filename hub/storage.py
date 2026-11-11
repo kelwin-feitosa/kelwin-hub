@@ -5,6 +5,9 @@ from pathlib import Path
 import sqlite3
 import uuid
 
+MIGRATIONS = Path(__file__).resolve().parent / "migrations"
+LATEST_SCHEMA_VERSION = 1
+
 
 def now_utc() -> str:
     return datetime.now(timezone.utc).isoformat(timespec='seconds')
@@ -79,7 +82,15 @@ class Store:
         Path(path).parent.mkdir(parents=True, exist_ok=True)
         with self.connection() as db:
             db.execute('PRAGMA journal_mode=WAL')
+            current = db.execute('PRAGMA user_version').fetchone()[0]
+            if current > LATEST_SCHEMA_VERSION:
+                raise RuntimeError('Banco de versão superior ao aplicativo; atualização necessária')
             db.executescript(SCHEMA)
+            for version in range(current + 1, LATEST_SCHEMA_VERSION + 1):
+                sql = (MIGRATIONS / f'{version:03d}_sessions_scheduler_integrity.sql').read_text(encoding='utf-8')
+                # The migration, data preservation and version bump are one transaction.
+                # executescript() commits its prior transaction; BEGIN lives inside the script.
+                db.executescript(f'BEGIN IMMEDIATE;\n{sql}\nPRAGMA user_version={version};\nCOMMIT;')
 
     @contextmanager
     def connection(self):

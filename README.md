@@ -1,10 +1,14 @@
-# Kelwin Hub 7.0 — piloto local-first
+# Kelwin Hub 10.0 — mesa de trabalho contextual (piloto local-first)
 
-> **Estado em 11/11/2026:** primeira fatia vertical implementada e testada por HTTP (sem Docker). **Não é o Kelwin Hub completo nem uma substituição aprovada da direção Java/Spring registrada no documento canônico.** Integrações reais com n8n, EspoCRM, Gmail, Calendar e GitHub ainda não foram homologadas.
+> **Estado em 11/11/2026:** primeira fatia vertical implementada e testada por HTTP (sem Docker). A versão 10.0 acrescenta **Mesa de trabalho contextual** e captura rápida sem migração de dados. **Não é o Kelwin Hub completo nem uma substituição aprovada da direção Java/Spring registrada no documento canônico.** Integrações reais com n8n, EspoCRM, Gmail, Calendar e GitHub ainda não foram homologadas.
 
 O Hub é uma central pessoal privada para projetos, tarefas, contatos, oportunidades, agenda e alertas automáticos. Prioriza utilidade antes de infraestrutura complexa. Executa no seu Pop!_OS; os dados são armazenados em SQLite local. n8n é **opcional**, usado apenas quando o fluxo justificar.
 
 ## O que está funcionando
+
+- **Mesa (v10.0):** próxima ação unificada por urgência, prazo e bloqueio; contexto de projetos e oportunidades; captura rápida; links diretos e foco; mantém a tela de tarefas, CRM e agenda. Atalho `Q` fora de campos. A visão anterior de estatísticas segue disponível pela API `/api/dashboard`, mas não é mais a tela inicial.
+- Arquitetura do novo fluxo: projeção autenticada e somente leitura `/api/workspace`, sem nova tabela ou migração; os dados continuam nos registros existentes. Veja `docs/ADR-003-MESA-CONTEXTUAL.md` e `docs/MISSAO-10-VERIFICACAO.md`.
+
 
 - Login de usuário único com PBKDF2-SHA256, cookie HttpOnly, SameSite Strict e CSRF ligado à sessão.
 - Painel **Hoje** com contadores, tarefas, compromissos locais e alertas.

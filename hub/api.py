@@ -19,6 +19,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from .security import csrf_token, hash_password, sign_session, validate_session, verify_password, SESSION_SECONDS
 from .storage import Store, now_utc, new_id, rows, record
 from .automation import TEMPLATES, safe_run_stale
+from .workspace import load_workspace
 
 LOG = logging.getLogger(__name__)
 STATIC = Path(__file__).parent / 'static'
@@ -307,6 +308,10 @@ def create_app(database_path: str | None = None, *, password_hash: str | None = 
             db.execute('UPDATE sessions SET revoked_at=? WHERE nonce=? AND revoked_at IS NULL', (now_utc(),nonce))
         response.delete_cookie('kh_session',path='/')
         return {'ok':True}
+
+    @app.get('/api/workspace')
+    def workspace(_=Depends(require_login)):
+        return load_workspace(store)
 
     @app.get('/api/dashboard')
     def dashboard(_=Depends(require_login)):

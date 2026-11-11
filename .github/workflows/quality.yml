@@ -28,5 +28,6 @@ jobs:
         run: |
           python -m compileall -q hub scripts
           node --check hub/static/app.js
+          node tests/ui_sanity.cjs
       - name: Whitespace check
         run: git diff --check

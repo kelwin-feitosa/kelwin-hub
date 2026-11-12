@@ -58,3 +58,10 @@
  .search-dialog{max-height:calc(100dvh - 32px)}
 }
 @media(max-width:360px){.topbar .top-actions{gap:3px}.topbar h1{font-size:17px}.content{padding-inline:12px}}
+/* Intermediate tablet widths: don't compress the important Create action. */
+@media(min-width:701px) and (max-width:1000px){
+ .topbar #export,.topbar .user-chip{display:none}
+ .topbar .shortcut-label{display:none}
+ .topbar #create-open{min-width:84px}
+ .topbar .top-actions{gap:7px}
+}

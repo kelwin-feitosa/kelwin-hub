@@ -122,6 +122,11 @@ def run():
                     expect(page.locator('.orbit-explore-entry')).to_have_count(8)
                     overflow = page.evaluate('document.documentElement.scrollWidth - window.innerWidth')
                     assert overflow <= 2, f'Horizontal page overflow at {width}px: {overflow}px'
+                    if width == 768:
+                        create_box = page.locator('#create-open').bounding_box()
+                        assert create_box and create_box['width'] >= 70, (
+                            f'Create action squashed at tablet width: {create_box}'
+                        )
                     if width < 700:
                         pos = page.locator('#nav').evaluate('(e)=>getComputedStyle(e).position')
                         assert pos == 'fixed', f'Mobile navigation not fixed at {width}px: {pos}'
@@ -130,6 +135,16 @@ def run():
                         page.locator('#nav [data-tab=explore]').click()
                     if width in (320, 390, 768, 1366, 1920):
                         page.screenshot(path=str(ARTIFACTS / f'explore-{width}-dark.png'), full_page=True)
+                    if width == 390:
+                        page.screenshot(path=str(ARTIFACTS / 'explore-mobile-viewport-dark.png'), full_page=False)
+                # The universal action search must navigate to every registered area.
+                page.locator('#search-open').click()
+                page.locator('#search-query').fill('agenda')
+                page.locator('#search-results button[data-tab=events]').first.click()
+                expect(page.locator('#pageTitle')).to_have_text('Agenda')
+                page.locator('#nav [data-tab=explore]').click()
+                page.locator('.orbit-utility-actions [data-orbita=logout]').click()
+                expect(page.locator('#login-screen')).to_be_visible()
                 # No JS exceptions while navigating, creating and changing theme.
                 assert not errors, f'Browser errors: {errors}'
                 browser.close()

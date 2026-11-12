@@ -159,3 +159,8 @@ a:focus-visible,.context-link:focus-visible,.text-action:focus-visible{outline:3
  .topbar #export{padding:7px 8px;font-size:12px}
  .topbar #theme{padding:7px 10px}
 }
+
+/* Contextual knowledge is integrated into projects without a second dashboard. */
+.context-extra{padding:15px 8px;display:grid;gap:8px;border-top:1px solid var(--border)}
+.context-extra h4{margin:8px 0 0;font-size:14px} .context-extra p{font-size:12px;overflow-wrap:anywhere}
+.field textarea{display:block;width:100%;padding:11px 12px;border:1px solid var(--border);border-radius:9px;background:var(--panel);color:var(--text);resize:vertical}

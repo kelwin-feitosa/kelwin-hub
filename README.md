@@ -157,3 +157,10 @@ A seção **Projetos** possui ação **Contexto**: consulte as tarefas vinculada
 ### Acompanhamentos por prazo (v11)
 
 A seção **Oportunidades** apresenta agora retornos vencidos, da próxima semana, mais distantes, aguardando sem data e encerrados, com filtros de status, categoria e texto. Os grupos vêm de `GET /api/opportunities/board`, apenas leitura, sem criar estados ou alterar datas. Veja `docs/ADR-007-ACOMPANHAMENTO-CONTEXTUAL.md`.
+
+## Missão 12.0 — conhecimento contextual (primeira entrega)
+
+- **Notas locais:** criar, editar, buscar e vincular a projeto, oportunidade e/ou contato. Aparecem na busca global e no contexto dos projetos; sem serviço ou custo de IA.
+- **Histórico factual:** `/api/activity?kind=project|opportunity|contact&ident=<uuid>` retorna ações de auditoria realmente registradas e ações de notas/tarefas associadas, com paginação (não cria eventos retroativos imaginários).
+- **Migração aditiva versão 2:** preserva todos os registros existentes; teste de atualização a partir do esquema versão 1. O export JSON passa a incluir notas.
+- Leia `docs/ADR-008-NOTAS-HISTORICO.md` para limites e escolhas.

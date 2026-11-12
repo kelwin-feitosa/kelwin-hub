@@ -164,6 +164,22 @@ class EventIn(Strict):
 class EventUpdate(Strict):
     status: str
 
+class NoteIn(Strict):
+    title: str = Field(min_length=1,max_length=160)
+    body: str = Field(min_length=1,max_length=12000)
+    project_id: str | None = None
+    contact_id: str | None = None
+    opportunity_id: str | None = None
+
+    @field_validator('title', 'body')
+    @classmethod
+    def required(cls, value: str) -> str:
+        return required_text(value)
+
+class NoteUpdate(Strict):
+    title: str | None = Field(default=None,min_length=1,max_length=160)
+    body: str | None = Field(default=None,min_length=1,max_length=12000)
+
 class AutomationIn(Strict):
     enabled: bool
     threshold_days: int = Field(ge=1,le=365)
@@ -516,6 +532,68 @@ def create_app(database_path: str | None = None, *, password_hash: str | None = 
             record(db,'task',ident,'update')
         return {'ok':True}
 
+    @app.get('/api/notes')
+    def notes(project_id: str | None = None, contact_id: str | None = None,
+              opportunity_id: str | None = None, limit: int = 100, offset: int = 0,
+              _=Depends(require_login)):
+        if not 1 <= limit <= 100 or not 0 <= offset <= 100_000:
+            raise HTTPException(422,'Paginação inválida')
+        terms=[]; params=[]
+        for field,ident in (('project_id',project_id),('contact_id',contact_id),('opportunity_id',opportunity_id)):
+            if ident is not None:
+                terms.append(f'{field}=?');params.append(ident)
+        sql='SELECT * FROM notes'+(' WHERE '+' AND '.join(terms) if terms else '')+' ORDER BY updated_at DESC, id DESC LIMIT ? OFFSET ?'
+        with store.connection() as db:
+            return rows(db.execute(sql,(*params,limit,offset)))
+
+    @app.post('/api/notes',status_code=201)
+    def add_note(data: NoteIn,_=Depends(require_login)):
+        ident=new_id(); now=now_utc()
+        with store.transaction() as db:
+            for table,related in (('projects',data.project_id),('contacts',data.contact_id),('opportunities',data.opportunity_id)):
+                if related is not None and not db.execute(f'SELECT 1 FROM {table} WHERE id=?',(related,)).fetchone():
+                    raise HTTPException(404,'Contexto não encontrado')
+            db.execute('INSERT INTO notes VALUES (?,?,?,?,?,?,?,?)',
+                       (ident,data.title,data.body,data.project_id,data.contact_id,data.opportunity_id,now,now))
+            record(db,'note',ident,'create')
+        return {'id':ident}
+
+    @app.patch('/api/notes/{ident}')
+    def edit_note(ident: str,data: NoteUpdate,_=Depends(require_login)):
+        changes=data.model_dump(exclude_unset=True)
+        if not changes or any(not isinstance(v,str) or not v.strip() for v in changes.values()):
+            raise HTTPException(422,'Nenhuma alteração válida')
+        changes={key:value.strip() for key,value in changes.items()}
+        changes['updated_at']=now_utc()
+        with store.transaction() as db:
+            updated=db.execute('UPDATE notes SET '+','.join(f'{field}=?' for field in changes)+' WHERE id=?',
+                               (*changes.values(),ident))
+            if not updated.rowcount:raise HTTPException(404,'Nota não encontrada')
+            record(db,'note',ident,'update')
+        return {'ok':True}
+
+    @app.get('/api/activity')
+    def contextual_activity(kind: str, ident: str, limit: int = 40, offset: int = 0,
+                            _=Depends(require_login)):
+        sources={'project':('projects','project_id'),'opportunity':('opportunities','opportunity_id'),
+                 'contact':('contacts','contact_id')}
+        if kind not in sources or not 1 <= limit <= 100 or not 0 <= offset <= 100_000:
+            raise HTTPException(422,'Contexto ou paginação inválidos')
+        table, link=sources[kind]
+        with store.connection() as db:
+            if not db.execute(f'SELECT 1 FROM {table} WHERE id=?',(ident,)).fetchone():
+                raise HTTPException(404,'Contexto não encontrado')
+            # Audit rows are existing factual operation records, not inferred history.
+            clauses=['(a.kind=? AND a.entity_id=?)']; params=[kind,ident]
+            clauses.append(f"(a.kind='note' AND a.entity_id IN (SELECT n.id FROM notes n WHERE n.{link}=?))")
+            params.append(ident)
+            if kind in ('project','opportunity'):
+                clauses.append(f"(a.kind='task' AND a.entity_id IN (SELECT t.id FROM tasks t WHERE t.{link}=?))")
+                params.append(ident)
+            result=db.execute('SELECT a.* FROM audit a WHERE '+' OR '.join(clauses)+
+                              ' ORDER BY a.at DESC,a.id DESC LIMIT ? OFFSET ?',(*params,limit,offset))
+            return rows(result)
+
     @app.get('/api/events')
     def events(_=Depends(require_login)):
         with store.connection() as db:
@@ -602,7 +680,7 @@ def create_app(database_path: str | None = None, *, password_hash: str | None = 
 
     @app.get('/api/export')
     def export_owned_data(_=Depends(require_login)):
-        allowed=('projects','contacts','opportunities','tasks','events','automation_configs','automation_runs','alerts','audit')
+        allowed=('projects','contacts','opportunities','tasks','events','notes','automation_configs','automation_runs','alerts','audit')
         with store.connection() as db:
             result={'version':1,'generated_at':now_utc(),
                     'warning':'Contém informações privadas. Armazene em local protegido.'}

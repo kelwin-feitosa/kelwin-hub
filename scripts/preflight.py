@@ -11,11 +11,14 @@ import os
 from pathlib import Path
 import sqlite3
 import stat
+import sys
 from urllib.parse import quote
 
-from hub.storage import LATEST_SCHEMA_VERSION
-
 ROOT = Path(__file__).resolve().parents[1]
+# Permit running preflight before installing the package in editable mode.
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+from hub.storage import LATEST_SCHEMA_VERSION
 REQUIRED_ENV = {'HUB_PASSWORD_HASH', 'HUB_SESSION_SECRET'}
 REQUIRED_TABLES = {'projects', 'tasks', 'contacts', 'opportunities', 'automation_configs'}
 

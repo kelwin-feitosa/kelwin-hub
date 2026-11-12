@@ -33,3 +33,9 @@ Executar um threat model mínimo, validar a imagem Docker real, testar backup/re
 ### FORJA 13.5 - Restricao de Host
 
 O backend rejeita Host inesperado (400) via TrustedHostMiddleware. Sao aceitos 127.0.0.1, localhost, hub (Docker Compose/n8n opcional) e testserver (testes). Se no futuro houver VPN, dominio proprio ou reverse proxy, esta lista precisa de revisao explicita e medidas adicionais de HTTPS/rede; nao publicar o Hub administrativo apenas para suportar um host externo. Nenhum listener foi alterado.
+
+## HORIZONTE — permissões do banco e diagnóstico pré-atualização
+
+No Linux, o `Store` agora cria diretórios novos com permissão 0700 e arquivo SQLite novo com 0600 antes da conexão. Ao abrir um banco existente, restringe somente o arquivo de banco para 0600, mantendo seus registros; links simbólicos no destino são rejeitados para evitar redirecionamento acidental. Não modifica permissões de diretórios já existentes de outros usos. Arquivos auxiliares `-wal`/`-shm`, arquivos copiados, mídias removíveis e o sistema de arquivos precisam de inspeção específica no ambiente de instalação. Mantenha criptografia de disco e acesso restrito ao usuário Linux.
+
+Execute `python scripts/preflight.py` com o Hub parado. A inspeção abre SQLite em modo `ro`, verifica `integrity_check`, `foreign_key_check`, esquema e permissões, sem migrar, publicar ou criar banco. Resultado sem erros **não substitui** backup validado nem aprovação de segurança independente.

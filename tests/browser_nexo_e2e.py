@@ -82,7 +82,8 @@ def run():
                 expect(page.locator(f'#opportunity-context-{opportunity}')).to_be_visible()
 
                 page.set_viewport_size({'width':390,'height':844})
-                overflow=page.evaluate('document.documentElement.scrollWidth-window.innerWidth')
+                # Chromium may reserve scrollbar pixels in innerWidth; compare DOM viewport widths.
+                overflow=page.evaluate('document.documentElement.scrollWidth-document.documentElement.clientWidth')
                 offenders=page.evaluate("""() => [...document.querySelectorAll('body *')].map(e => ({name:e.tagName,className:String(e.className).slice(0,80),id:e.id,right:e.getBoundingClientRect().right,width:e.getBoundingClientRect().width})).filter(e=>e.right>innerWidth+2 && e.width>1).slice(0,15)""")
                 if overflow > 2:
                     Path('test-artifacts/orbita').mkdir(parents=True, exist_ok=True)
@@ -92,7 +93,7 @@ def run():
                 page.locator('#nav [data-tab=projects]').click()
                 page.locator(f'#projects-item-{project} [data-do=project-context]').click()
                 expect(page.locator(f'#project-context-{project}')).to_contain_text('Notas vinculadas')
-                assert page.evaluate('document.documentElement.scrollWidth-window.innerWidth') <= 2
+                assert page.evaluate('document.documentElement.scrollWidth-document.documentElement.clientWidth') <= 2
                 assert not browser_errors, browser_errors
                 browser.close()
             print('NEXO real browser E2E passed: project/opportunity context, linked capture, resume, mobile.')

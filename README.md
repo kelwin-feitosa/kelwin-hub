@@ -181,3 +181,8 @@ A seção **Oportunidades** apresenta agora retornos vencidos, da próxima seman
 ## Missão 13.0 — Revisão de reuniões (local-first)
 
 Em Agenda → Transcrições → Ler → **Preparar e revisar análise**, o Hub prepara um pacote que pode ser copiado voluntariamente para o ChatGPT. Você decide se compartilhará o conteúdo privado. O Hub não envia nada automaticamente. Cole o JSON de retorno, confira as evidências literais e aprove cada ação individualmente para gerar tarefa (não há tarefa criada por análise sem aprovação). Sugestões sem evidência exata são rejeitadas; imports repetidos e aprovação repetida não duplicam tarefas. Busca específica: `/api/meeting-review/search?q=...`. Há exclusão explícita de transcrições por API autenticada; isso remove também análises/itens vinculados, porém não elimina backups antigos ou tarefas aprovadas. A documentação de segurança e limites está em `docs/ADR-011-REVISAO-REUNIOES.md`. Não exige IA paga, bot nem servidor MCP remoto.
+
+
+## Missão 13.0 — Disponibilidade local
+
+Na Agenda, escolha **Horários livres** para cadastrar faixas semanais, consultar opções livres em `America/Sao_Paulo`, considerar duração e intervalo entre compromissos, e confirmar um evento **local**. O preview ignora propostas e cancelamentos e considera apenas eventos confirmados do próprio Hub. A confirmação passa novamente pela API `/api/events`, com transação e prevenção de conflitos. Nenhuma disponibilidade é criada por padrão e nenhum horário é publicado para terceiros. Não há sincronização externa nem reserva pública. Veja `docs/ADR-012-DISPONIBILIDADE-PRIVADA.md`.

@@ -783,5 +783,7 @@ def create_app(database_path: str | None = None, *, password_hash: str | None = 
 
     from .meeting_review import register_meeting_review
     register_meeting_review(app,store,require_login,timestamp)
+    from .availability import register_availability
+    register_availability(app,store,require_login)
     return app
 

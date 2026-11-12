@@ -4,12 +4,14 @@ on:
     paths:
       - 'hub/**'
       - 'tests/browser_orbita_e2e.py'
+      - 'tests/browser_nexo_e2e.py'
       - '.github/workflows/browser.yml'
   push:
     branches: [main]
     paths:
       - 'hub/**'
       - 'tests/browser_orbita_e2e.py'
+      - 'tests/browser_nexo_e2e.py'
       - '.github/workflows/browser.yml'
 permissions:
   contents: read
@@ -31,7 +33,9 @@ jobs:
           python -m pip install 'playwright>=1.54,<2'
           python -m playwright install --with-deps chromium
       - name: Real browser journeys against temporary FastAPI
-        run: python tests/browser_orbita_e2e.py
+        run: |
+          python tests/browser_orbita_e2e.py
+          python tests/browser_nexo_e2e.py
       - uses: actions/upload-artifact@v5
         if: ${{ !cancelled() }}
         with:

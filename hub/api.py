@@ -21,6 +21,7 @@ from .storage import Store, now_utc, new_id, rows, record
 from .automation import TEMPLATES, safe_run_stale
 from .workspace import load_workspace
 from .search import search as search_records
+from .project_context import load_project_context
 
 LOG = logging.getLogger(__name__)
 STATIC = Path(__file__).parent / 'static'
@@ -347,6 +348,13 @@ def create_app(database_path: str | None = None, *, password_hash: str | None = 
     def projects(_=Depends(require_login)):
         with store.connection() as db:
             return rows(db.execute('SELECT * FROM projects ORDER BY created_at DESC'))
+
+    @app.get('/api/projects/{ident}/context')
+    def project_context(ident: str, _=Depends(require_login)):
+        data = load_project_context(store, ident)
+        if data is None:
+            raise HTTPException(404, 'Projeto não encontrado')
+        return data
 
     @app.post('/api/projects',status_code=201)
     def add_project(data: ProjectIn,_=Depends(require_login)):

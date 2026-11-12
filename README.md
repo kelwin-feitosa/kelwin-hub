@@ -149,3 +149,7 @@ O tema escuro usa agora superfícies grafite/ardósia e acento azul suave, sem f
 ### Pesquisa global e navegação (v11)
 
 Clique em **Buscar** ou use `Ctrl+K` / `⌘K` com o Hub aberto. A pesquisa autenticada usa `GET /api/search?q=...`, procura em projetos, tarefas, contatos, oportunidades e agenda e permite abrir diretamente o registro original. Há busca por nomes relacionados e tolerância a acentos. **Sem internet, API paga ou novo banco.** Veja `docs/ADR-005-BUSCA-UNIFICADA.md`.
+
+### Projetos com contexto (v11)
+
+A seção **Projetos** possui ação **Contexto**: consulte as tarefas vinculadas, seus estados e a próxima tarefa aberta, e crie nova tarefa já associada ao projeto. As informações são consultadas diretamente na base atual pelo endpoint read-only `GET /api/projects/{id}/context`, sem migrações. Veja `docs/ADR-006-PROJETO-CONTEXTUAL.md`.

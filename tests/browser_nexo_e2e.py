@@ -84,7 +84,11 @@ def run():
                 page.set_viewport_size({'width':390,'height':844})
                 overflow=page.evaluate('document.documentElement.scrollWidth-window.innerWidth')
                 offenders=page.evaluate("""() => [...document.querySelectorAll('body *')].map(e => ({name:e.tagName,className:String(e.className).slice(0,80),id:e.id,right:e.getBoundingClientRect().right,width:e.getBoundingClientRect().width})).filter(e=>e.right>innerWidth+2 && e.width>1).slice(0,15)""")
-                assert overflow <= 2, (overflow, offenders)
+                if overflow > 2:
+                    Path('test-artifacts/orbita').mkdir(parents=True, exist_ok=True)
+                    page.screenshot(path='test-artifacts/orbita/nexo-mobile-overflow.png',full_page=True)
+                metrics=page.evaluate("""() => Object.fromEntries(['html','body','.shell','.main-wrap','.topbar','.top-actions','#content','.opportunity-board','.nexo-opportunity'].map(s=>{const e=document.querySelector(s);return [s,e&&{scrollWidth:e.scrollWidth,clientWidth:e.clientWidth,rectWidth:e.getBoundingClientRect().width,rectRight:e.getBoundingClientRect().right}]}))""")
+                assert overflow <= 2, (overflow, metrics, offenders)
                 page.locator('#nav [data-tab=projects]').click()
                 page.locator(f'#projects-item-{project} [data-do=project-context]').click()
                 expect(page.locator(f'#project-context-{project}')).to_contain_text('Notas vinculadas')

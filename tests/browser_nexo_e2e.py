@@ -82,7 +82,9 @@ def run():
                 expect(page.locator(f'#opportunity-context-{opportunity}')).to_be_visible()
 
                 page.set_viewport_size({'width':390,'height':844})
-                assert page.evaluate('document.documentElement.scrollWidth-window.innerWidth') <= 2
+                overflow=page.evaluate('document.documentElement.scrollWidth-window.innerWidth')
+                offenders=page.evaluate("""() => [...document.querySelectorAll('body *')].map(e => ({name:e.tagName,className:String(e.className).slice(0,80),id:e.id,right:e.getBoundingClientRect().right,width:e.getBoundingClientRect().width})).filter(e=>e.right>innerWidth+2 && e.width>1).slice(0,15)""")
+                assert overflow <= 2, (overflow, offenders)
                 page.locator('#nav [data-tab=projects]').click()
                 page.locator(f'#projects-item-{project} [data-do=project-context]').click()
                 expect(page.locator(f'#project-context-{project}')).to_contain_text('Notas vinculadas')

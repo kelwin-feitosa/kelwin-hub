@@ -122,3 +122,14 @@ a:focus-visible,.context-link:focus-visible,.text-action:focus-visible{outline:3
 .search-footnote{font-size:11px;color:var(--muted);margin-top:14px}
 .shortcut-label{font-size:10px;opacity:.7;margin-left:4px}
 @media(max-width:700px){.shortcut-label{display:none}.search-dialog{padding:17px}.search-dialog input[type="search"]{font-size:16px}}
+
+/* Project context: details expand in place rather than creating another dashboard. */
+.project-context{padding:16px 16px 20px;margin-bottom:18px;border:1px solid var(--border);border-radius:11px;background:var(--panel2)}
+.project-context-head{display:flex;gap:16px;align-items:start;justify-content:space-between}
+.project-context-head h3{font-size:16px;margin-bottom:6px}
+.project-context-head p{font-size:13px;color:var(--muted);margin:4px 0}
+.project-task-list{margin-top:14px;display:grid;gap:0}
+.project-task{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 3px;border-top:1px solid var(--border)}
+.project-task strong{display:block;font-size:13px}
+.project-task small{display:block;color:var(--muted);font-size:11px;margin-top:3px}
+@media(max-width:700px){.project-context-head{flex-direction:column}.project-task{align-items:flex-start}.project-task .mini{flex-shrink:0}}

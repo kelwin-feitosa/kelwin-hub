@@ -111,7 +111,7 @@ def run():
                 page.locator('#search-query').fill('Tarefa fictícia')
                 expect(page.locator('#search-results .search-result')).not_to_have_count(0)
                 page.locator('#search-results .search-result[data-tab=tasks]').first.click()
-                expect(page.get_by_text('Tarefa fictícia ÓRBITA')).to_be_visible()
+                expect(page.locator('#content').get_by_text('Tarefa fictícia ÓRBITA')).to_be_visible()
                 page.locator('#theme').click()
                 assert page.locator('html').get_attribute('data-theme') == 'dark'
                 page.locator('#nav [data-tab=explore]').click()

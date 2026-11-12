@@ -300,6 +300,12 @@ window.addEventListener('DOMContentLoaded',async()=>{
  $('content').addEventListener('submit',(e)=>{if(e.target.id==='quick-task'){e.preventDefault();quickCapture(e.target)}});
  document.addEventListener('keydown',(e)=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'&&!$('shell').hidden){e.preventDefault();openSearch();return}const tag=document.activeElement?.tagName;const busy=['INPUT','TEXTAREA','SELECT'].includes(tag)||$('dialog').open||$('search-dialog').open;if(e.key.toLowerCase()==='q'&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!busy&&!$('shell').hidden){e.preventDefault();showTab('today').then(()=>$('quick-title')?.focus())}});
  $('logout').addEventListener('click',async()=>{try{await api('/api/logout','POST',{})}finally{showAuth()}});
- $('cancel-dialog').addEventListener('click',()=>$('dialog').close());
+ $('dialog').addEventListener('cancel',event=>{
+  if(dialogSaving||!confirmDiscardDialog())event.preventDefault();
+ });
+ $('dialog').addEventListener('close',()=>setDialogDirty(false));
+ $('cancel-dialog').addEventListener('click',()=>{
+  if(!dialogSaving&&confirmDiscardDialog())$('dialog').close();
+ });
  await showApp();
 });

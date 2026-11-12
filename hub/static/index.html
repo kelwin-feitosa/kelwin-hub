@@ -28,7 +28,7 @@
     <div class="main-wrap">
       <header class="topbar">
         <div><div class="eyebrow">MEU ESPAÇO</div><h1 id="pageTitle">Hoje</h1></div>
-        <div class="top-actions"><button type="button" class="ghost" id="export" title="Exportar registros em JSON">Exportar</button><button type="button" class="ghost" id="theme" aria-label="Alternar tema">◐</button><span class="user-chip">● Local</span></div>
+        <div class="top-actions"><button type="button" class="ghost" id="search-open" aria-keyshortcuts="Control+K Meta+K" title="Pesquisar projetos, tarefas, contatos e agenda">⌕ Buscar <span class="shortcut-label">Ctrl K</span></button><button type="button" class="ghost" id="export" title="Exportar registros em JSON">Exportar</button><button type="button" class="ghost" id="theme" aria-label="Alternar tema">◐</button><span class="user-chip">● Local</span></div>
       </header>
       <main id="content" class="content" tabindex="-1"><p class="muted">Carregando...</p></main>
       <footer class="footer">Kelwin Hub · piloto local 10.0 · Nenhum envio automático a terceiros</footer>
@@ -41,6 +41,13 @@
       <small>Servidor local · acesso protegido</small>
     </div>
   </section>
+  <dialog id="search-dialog" class="search-dialog" aria-labelledby="search-heading">
+    <div class="search-heading"><h2 id="search-heading">Encontrar no Hub</h2><button type="button" id="search-close" class="ghost" aria-label="Fechar pesquisa">Fechar</button></div>
+    <label for="search-query">Pesquisar em tarefas, projetos, contatos, oportunidades e agenda</label>
+    <input id="search-query" type="search" placeholder="Digite pelo menos 2 caracteres…" minlength="2" maxlength="100" autocomplete="off">
+    <div id="search-results" class="search-results" aria-live="polite"><p class="muted">Digite para encontrar registros.</p></div>
+    <p class="search-footnote">Busca local: nenhuma consulta é enviada a serviços externos.</p>
+  </dialog>
   <dialog id="dialog" aria-label="Formulário"><form method="dialog" id="dynamic-form"><div id="dialog-body"></div><div class="dialog-actions"><button type="button" class="ghost" id="cancel-dialog">Cancelar</button><button type="submit" class="primary">Salvar</button></div><p class="form-error" id="dialog-error" role="alert"></p></form></dialog>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 </body>

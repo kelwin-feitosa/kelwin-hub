@@ -18,6 +18,33 @@ async function api(url,method='GET',data){
 async function showAuth(){csrf=null;$('shell').hidden=true;$('login-screen').hidden=false;$('password').value='';}
 async function showApp(){const state=await api('/api/session');if(!state.authenticated){showAuth();return}csrf=state.csrf;$('shell').hidden=false;$('login-screen').hidden=true;await showTab('today')}
 function changeTheme(){const next=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=next;(()=>{try{localStorage.setItem('kh_theme',next)}catch(_){/* storage may be disabled */}})()}
+let searchSequence=0,searchTimer=null,searchPreviousFocus=null;
+function openSearch(){
+ if($('shell').hidden||$('search-dialog').open)return;
+ searchPreviousFocus=document.activeElement;
+ $('search-query').value='';
+ $('search-results').innerHTML='<p class="muted">Digite para encontrar registros.</p>';
+ $('search-dialog').showModal();$('search-query').focus();
+}
+function searchResult(item){
+ const kind={projects:'Projeto',tasks:'Tarefa',contacts:'Contato',opportunities:'Oportunidade',events:'Agenda'}[item.kind]||'Registro';
+ return `<button type="button" class="search-result" data-tab="${safe(item.kind)}" data-id="${safe(item.id)}"><span class="search-result-kind">${kind}</span><strong>${safe(item.title)}</strong><small>${safe(item.detail)}${item.status?' · '+safe(item.status):''}</small></button>`;
+}
+async function doSearch(){
+ const raw=$('search-query').value.trim();
+ const seq=++searchSequence;
+ if(raw.length<2){$('search-results').innerHTML='<p class="muted">Digite pelo menos 2 caracteres.</p>';return}
+ $('search-results').innerHTML='<p class="muted">Procurando…</p>';
+ try{
+  const data=await api('/api/search?q='+encodeURIComponent(raw));
+  if(seq!==searchSequence||!$('search-dialog').open)return;
+  $('search-results').innerHTML=data.results.length?data.results.map(searchResult).join(''):'<p class="muted">Nenhum registro encontrado.</p>';
+ }catch(error){if(seq===searchSequence)$('search-results').textContent='Não foi possível pesquisar: '+error.message}
+}
+function closeSearch(){
+ searchSequence++;clearTimeout(searchTimer);
+ $('search-dialog').close();searchPreviousFocus?.focus?.();
+}
 function panel(title,body,other=''){return `<section class="panel"><div class="section-head"><h2>${safe(title)}</h2>${other}</div>${body}</section>`}
 function blank(label){return `<p class="blank">${safe(label)}</p>`}
 function badge(label,type=''){return `<span class="pill ${type}">${safe(label)}</span>`}
@@ -65,10 +92,10 @@ async function quickCapture(form){
  }catch(err){error.textContent=err.message;button.disabled=false}
 }
 async function projectsView(){const data=await api('/api/projects');$('content').innerHTML=`<div class="section-head"><p class="muted">Separe seus projetos por área, sem duplicar issues do GitHub.</p><button class="primary" data-do="add-project">+ Novo projeto</button></div>${panel('Meus projetos',data.length?`<div class="list">${data.map(x=>`<div id="projects-item-${safe(x.id)}" class="item"><div class="item-info"><strong>${safe(x.name)}</strong><small>${safe(x.area)} · criado ${dateTime(x.created_at)}</small></div>${badge(x.status)}<button class="mini" data-do="edit-project" data-id="${safe(x.id)}">Editar</button></div>`).join('')}</div>`:blank('Nenhum projeto cadastrado.'))}`}
-async function contactsView(){const data=await api('/api/contacts');$('content').innerHTML=`<div class="section-head"><p class="muted">Pessoas com quem você se relaciona profissionalmente.</p><button class="primary" data-do="add-contact">+ Novo contato</button></div>${panel('Lista de contatos',data.length?`<div class="list">${data.map(x=>`<div class="item"><div class="item-info"><strong>${safe(x.name)}</strong><small>${safe(x.company||'Sem empresa')} · ${safe(x.email||'Sem e-mail')}</small></div>${badge(x.category)}<button class="mini" data-do="edit-contact" data-id="${safe(x.id)}">Editar</button></div>`).join('')}</div>`:blank('Comece cadastrando um contato fictício para testar.'))}`}
+async function contactsView(){const data=await api('/api/contacts');$('content').innerHTML=`<div class="section-head"><p class="muted">Pessoas com quem você se relaciona profissionalmente.</p><button class="primary" data-do="add-contact">+ Novo contato</button></div>${panel('Lista de contatos',data.length?`<div class="list">${data.map(x=>`<div id="contacts-item-${safe(x.id)}" class="item"><div class="item-info"><strong>${safe(x.name)}</strong><small>${safe(x.company||'Sem empresa')} · ${safe(x.email||'Sem e-mail')}</small></div>${badge(x.category)}<button class="mini" data-do="edit-contact" data-id="${safe(x.id)}">Editar</button></div>`).join('')}</div>`:blank('Comece cadastrando um contato fictício para testar.'))}`}
 async function opportunitiesView(){const data=await api('/api/opportunities');$('content').innerHTML=`<div class="section-head"><p class="muted">Cada oportunidade tem uma próxima ação explícita.</p><button class="primary" data-do="add-opportunity">+ Nova oportunidade</button></div>${panel('Acompanhamentos',data.length?`<div class="list">${data.map(x=>`<div id="opportunities-item-${safe(x.id)}" class="item"><div class="item-info"><strong>${safe(x.title)}</strong><small>${safe(x.contact_name)} · próximo passo: ${safe(x.next_action)} · ${x.followup_at?dateTime(x.followup_at):'sem prazo'}</small></div><div class="row-actions">${badge(x.status)}<button class="mini" data-do="edit-opportunity" data-id="${safe(x.id)}">Editar</button><button class="mini" data-do="add-linked-task" data-id="${safe(x.id)}">Criar tarefa</button><button class="mini" data-do="contacted" data-id="${safe(x.id)}">Registrar contato</button></div></div>`).join('')}</div>`:blank('Crie um contato antes de abrir uma oportunidade.'))}`}
 async function tasksView(){const data=await api('/api/tasks');$('content').innerHTML=`<div class="section-head"><p class="muted">Tarefas próprias do Hub, com histórico de conclusão.</p><button class="primary" data-do="add-task">+ Nova tarefa</button></div>${panel('Todas as tarefas',data.length?`<div class="list">${data.map(x=>`<div id="tasks-item-${safe(x.id)}" class="item"><div class="item-info"><strong>${safe(x.title)}</strong><small>${x.due_at?dateTime(x.due_at):'Sem prazo'} · prioridade ${x.priority}</small></div><div class="row-actions">${badge(x.status)}<button class="mini" data-do="edit-task" data-id="${safe(x.id)}">Editar</button>${x.status!=='done'?`<button class="mini" data-do="complete" data-id="${safe(x.id)}">Concluir</button>`:''}</div></div>`).join('')}</div>`:blank('Nenhuma tarefa cadastrada.'))}`}
-async function eventsView(){const data=await api('/api/events');$('content').innerHTML=`<div class="section-head"><p class="muted">Eventos locais. Integrações externas serão adicionadas com seu consentimento.</p><button class="primary" data-do="add-event">+ Novo evento</button></div>${panel('Agenda local',data.length?`<div class="list">${data.map(x=>`<div class="item"><div class="item-info"><strong>${safe(x.title)}</strong><small>${dateTime(x.start_at)} até ${dateTime(x.end_at)}</small></div>${badge(x.status,x.status==='confirmed'?'good':'warn')}<button class="mini" data-do="edit-event" data-id="${safe(x.id)}">Status</button></div>`).join('')}</div>`:blank('Nenhum evento local registrado.'))}`}
+async function eventsView(){const data=await api('/api/events');$('content').innerHTML=`<div class="section-head"><p class="muted">Eventos locais. Integrações externas serão adicionadas com seu consentimento.</p><button class="primary" data-do="add-event">+ Novo evento</button></div>${panel('Agenda local',data.length?`<div class="list">${data.map(x=>`<div id="events-item-${safe(x.id)}" class="item"><div class="item-info"><strong>${safe(x.title)}</strong><small>${dateTime(x.start_at)} até ${dateTime(x.end_at)}</small></div>${badge(x.status,x.status==='confirmed'?'good':'warn')}<button class="mini" data-do="edit-event" data-id="${safe(x.id)}">Status</button></div>`).join('')}</div>`:blank('Nenhum evento local registrado.'))}`}
 async function automationsView(){const data=await api('/api/automations'),runs=await api('/api/automation-runs'),health=await api('/api/automation-health');
  const cards=data.map(x=>{const enabled=x.status==='available';const c=x.settings||{};return `<section class="panel automation-card ${enabled?'':'disabled'}"><header>${badge(x.atlas)} ${badge(enabled?'Disponível':'Planejada',enabled?'good':'')}</header><h2>${safe(x.name)}</h2><p>${safe(x.description)}</p><small class="muted">Motor: ${safe(x.engine)} · risco: ${safe(x.risk)}</small>${enabled?`<footer><label><input id="autoEnabled" type="checkbox" ${c.enabled?'checked':''}> Ativa</label><label for="autoDays">Dias <input id="autoDays" type="number" min="1" max="365" value="${c.threshold_days}"></label></footer><footer><button class="mini" data-do="save-auto">Salvar</button><button class="primary" data-do="run-auto">Executar agora</button></footer><small class="muted">Última execução: ${c.last_run_at?dateTime(c.last_run_at):'nunca'}</small>`:''}</section>`}).join('');
  const history=runs.length?`<div class="list">${runs.slice(0,10).map(x=>`<div class="item"><div class="item-info"><strong>${safe(x.code)}</strong><small>${dateTime(x.executed_at)} · ${x.scanned} analisadas, ${x.created} alertas novos</small></div>${badge(x.status)}</div>`).join('')}</div>`:blank('Ainda não existem execuções.');
@@ -112,10 +139,20 @@ async function handleAction(button){const a=button.dataset.do,id=button.dataset.
 window.addEventListener('DOMContentLoaded',async()=>{
  document.documentElement.dataset.theme=(()=>{try{return localStorage.getItem('kh_theme')||(window.matchMedia?.('(prefers-color-scheme: dark)').matches?'dark':'light')}catch(_){return 'light'}})();$('theme').addEventListener('click',changeTheme);$('export').addEventListener('click',async()=>{try{const data=await api('/api/export');const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='kelwin-hub-export.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);notify('Exportação pronta — proteja o arquivo privado')}catch(error){notify(error.message)}});
  $('login-form').addEventListener('submit',async(e)=>{e.preventDefault();$('login-error').textContent='';try{await api('/api/login','POST',{password:$('password').value});await showApp()}catch(error){$('login-error').textContent=error.message}});
+ $('search-open').addEventListener('click',openSearch);
+ $('search-close').addEventListener('click',closeSearch);
+ $('search-dialog').addEventListener('close',()=>{searchSequence++;clearTimeout(searchTimer);searchPreviousFocus?.focus?.()});
+ $('search-query').addEventListener('input',()=>{clearTimeout(searchTimer);searchTimer=setTimeout(doSearch,170)});
+ $('search-results').addEventListener('click',async e=>{
+  const b=e.target.closest('button[data-tab]');if(!b)return;
+  const tabName=b.dataset.tab,id=b.dataset.id;
+  if(!['tasks','projects','contacts','opportunities','events'].includes(tabName))return;
+  closeSearch();await showTab(tabName,id);
+ });
  $('nav').addEventListener('click',(e)=>{const b=e.target.closest('[data-tab]');if(b)showTab(b.dataset.tab)});
  $('content').addEventListener('click',(e)=>{const b=e.target.closest('[data-do]');if(b)handleAction(b)});
  $('content').addEventListener('submit',(e)=>{if(e.target.id==='quick-task'){e.preventDefault();quickCapture(e.target)}});
- document.addEventListener('keydown',(e)=>{const tag=document.activeElement?.tagName;const busy=['INPUT','TEXTAREA','SELECT'].includes(tag)||$('dialog').open;if(e.key.toLowerCase()==='q'&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!busy&&!$('shell').hidden){e.preventDefault();showTab('today').then(()=>$('quick-title')?.focus())}});
+ document.addEventListener('keydown',(e)=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'&&!$('shell').hidden){e.preventDefault();openSearch();return}const tag=document.activeElement?.tagName;const busy=['INPUT','TEXTAREA','SELECT'].includes(tag)||$('dialog').open||$('search-dialog').open;if(e.key.toLowerCase()==='q'&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!busy&&!$('shell').hidden){e.preventDefault();showTab('today').then(()=>$('quick-title')?.focus())}});
  $('logout').addEventListener('click',async()=>{try{await api('/api/logout','POST',{})}finally{showAuth()}});
  $('cancel-dialog').addEventListener('click',()=>$('dialog').close());
  await showApp();

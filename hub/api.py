@@ -20,6 +20,7 @@ from .security import csrf_token, hash_password, sign_session, validate_session,
 from .storage import Store, now_utc, new_id, rows, record
 from .automation import TEMPLATES, safe_run_stale
 from .workspace import load_workspace
+from .search import search as search_records
 
 LOG = logging.getLogger(__name__)
 STATIC = Path(__file__).parent / 'static'
@@ -316,6 +317,13 @@ def create_app(database_path: str | None = None, *, password_hash: str | None = 
     @app.get('/api/workspace')
     def workspace(_=Depends(require_login)):
         return load_workspace(store)
+
+    @app.get('/api/search')
+    def universal_search(q: str, _=Depends(require_login)):
+        try:
+            return search_records(store, q)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
 
     @app.get('/api/dashboard')
     def dashboard(_=Depends(require_login)):

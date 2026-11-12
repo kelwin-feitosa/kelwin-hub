@@ -145,3 +145,7 @@ Este repositório é **um piloto de validação**, sem pretensão de substituir 
 ### Evolução da identidade visual (Missão 11.0)
 
 O tema escuro usa agora superfícies grafite/ardósia e acento azul suave, sem fundos verdes. O favicon local é atendido em `/favicon.ico`; a preferência do sistema orienta o primeiro acesso, e a escolha manual permanece salva no navegador. A decisão e suas limitações estão em `docs/ADR-004-TEMA-ESCURA-FAVICON.md`.
+
+### Pesquisa global e navegação (v11)
+
+Clique em **Buscar** ou use `Ctrl+K` / `⌘K` com o Hub aberto. A pesquisa autenticada usa `GET /api/search?q=...`, procura em projetos, tarefas, contatos, oportunidades e agenda e permite abrir diretamente o registro original. Há busca por nomes relacionados e tolerância a acentos. **Sem internet, API paga ou novo banco.** Veja `docs/ADR-005-BUSCA-UNIFICADA.md`.

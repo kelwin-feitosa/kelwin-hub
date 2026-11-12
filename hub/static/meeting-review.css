@@ -16,3 +16,11 @@
 .review-form input,.review-form select{width:100%;min-width:0;border:1px solid var(--border);border-radius:8px;padding:8px;background:var(--panel);color:var(--text)}
 .review-footnote{color:var(--muted);font-size:12px;margin-top:16px}
 @media(max-width:650px){.review-form{grid-template-columns:1fr}#meeting-review-dialog{padding:16px}}
+
+.review-search{border:1px solid var(--border);border-radius:10px;padding:12px;margin:12px 0;background:var(--panel2)}
+.review-search label{font-size:12px;color:var(--muted);font-weight:650}
+.review-search>div:first-of-type{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.review-search input{flex:1;min-width:140px;border:1px solid var(--border);border-radius:8px;background:var(--panel);color:var(--text);padding:8px}
+.review-result{display:block;text-align:left;width:100%;white-space:normal;margin:5px 0}
+.review-result strong,.review-result small{display:block;overflow-wrap:anywhere}
+.review-result small{color:var(--muted)}

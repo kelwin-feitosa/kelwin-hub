@@ -186,3 +186,6 @@ Em Agenda → Transcrições → Ler → **Preparar e revisar análise**, o Hub 
 ## Missão 13.0 — Disponibilidade local
 
 Na Agenda, escolha **Horários livres** para cadastrar faixas semanais, consultar opções livres em `America/Sao_Paulo`, considerar duração e intervalo entre compromissos, e confirmar um evento **local**. O preview ignora propostas e cancelamentos e considera apenas eventos confirmados do próprio Hub. A confirmação passa novamente pela API `/api/events`, com transação e prevenção de conflitos. Nenhuma disponibilidade é criada por padrão e nenhum horário é publicado para terceiros. Não há sincronização externa nem reserva pública. Veja `docs/ADR-012-DISPONIBILIDADE-PRIVADA.md`.
+
+
+**Missão 13.0 — Citações práticas:** ao importar resultado de ChatGPT, basta enviar `evidence.quote` com um trecho literal **único** da transcrição. `evidence.start` e `evidence.end` são opcionais: o Hub localiza offsets Unicode quando o trecho é único. Citações inexistentes/ambíguas são rejeitadas. Na revisão, é possível pesquisar outras transcrições e excluir o conteúdo após confirmação; backups/exportações anteriores permanecem sob gestão do usuário.

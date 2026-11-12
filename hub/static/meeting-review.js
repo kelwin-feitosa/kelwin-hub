@@ -10,9 +10,10 @@
     dialog=document.createElement('dialog');
     dialog.id='meeting-review-dialog';
     dialog.setAttribute('aria-labelledby','review-title');
-    dialog.innerHTML=`<div class="review-head"><h2 id="review-title">Revisar reunião</h2><button class="mini" id="review-close" type="button">Fechar</button></div>
+    dialog.innerHTML=`<div class="review-head"><h2 id="review-title">Revisar reunião</h2><div class="review-actions"><button class="mini" id="review-delete" type="button">Excluir transcrição</button><button class="mini" id="review-close" type="button">Fechar</button></div></div>
       <p class="muted">As informações continuam no Hub. Copiar para o ChatGPT é uma decisão sua e pode compartilhar dados privados.</p>
       <div class="review-actions"><button id="review-package" type="button" class="mini">Copiar pacote de análise</button><button id="review-refresh" type="button" class="mini">Atualizar sugestões</button></div>
+      <div class="review-search"><label for="review-search-query">Pesquisar em transcrições</label><div><input id="review-search-query" type="search" minlength="2" maxlength="100" placeholder="Buscar palavra ou frase"><button class="mini" type="button" id="review-search-button">Pesquisar</button></div><div id="review-search-results" aria-live="polite"></div></div>
       <label class="review-label" for="review-import">Cole aqui o JSON retornado pelo ChatGPT</label>
       <textarea id="review-import" rows="6" spellcheck="false" placeholder='{"schema_version":1,...}'></textarea>
       <button type="button" class="primary" id="review-submit">Importar análise e verificar evidências</button>
@@ -21,6 +22,30 @@
       <p class="review-footnote">Nenhuma tarefa é criada sem sua aprovação. Itens de IA são sugestões, nunca decisões automáticas.</p>`;
     document.body.appendChild(dialog);
     get('review-close').addEventListener('click',()=>dialog.close());
+    get('review-delete').addEventListener('click',async()=>{
+      if(!window.confirm('Excluir esta transcrição e suas análises? Tarefas criadas continuarão existindo. Backups e exportações anteriores não serão apagados.'))return;
+      try{
+        await api(`/api/meeting-review/transcripts/${encodeURIComponent(currentTranscript)}`,'DELETE');
+        dialog.close();notify('Transcrição removida. Backups anteriores ainda exigem gestão separada.');
+        if(typeof showTab==='function')await showTab('events');
+      }catch(e){get('review-error').textContent=e.message;}
+    });
+    get('review-search-button').addEventListener('click',async()=>{
+      const q=get('review-search-query').value.trim();
+      if(q.length<2){get('review-error').textContent='Digite pelo menos dois caracteres';return;}
+      try{
+        const found=await api('/api/meeting-review/search?q='+encodeURIComponent(q));
+        get('review-error').textContent='';
+        get('review-search-results').innerHTML=found.results.length?found.results.map(x=>
+          `<button type="button" class="review-result mini" data-review-trans="${esc(x.id)}"><strong>${esc(x.source_name||'Transcrição')}</strong><small>${esc(x.excerpt)}</small></button>`).join(''):'<p class="muted">Nenhum trecho encontrado nas transcrições recentes.</p>';
+      }catch(e){get('review-error').textContent=e.message;}
+    });
+    get('review-search-results').addEventListener('click',async(event)=>{
+      const b=event.target.closest('[data-review-trans]');if(!b)return;
+      currentTranscript=b.dataset.reviewTrans;
+      get('review-search-results').innerHTML='';
+      await refresh();
+    });
     get('review-package').addEventListener('click',async()=>{
       try{
         const pack=await api(`/api/meeting-review/transcripts/${encodeURIComponent(currentTranscript)}/package`);

@@ -14,3 +14,11 @@ def test_review_assets_and_explicit_approval():
     assert 'meeting-review/items/' in js and 'review-import' in js
     assert 'api(' in js and 'esc(' in js and 'textContent' in js
     assert 'var(--panel)' in css and 'var(--border)' in css
+
+
+def test_review_private_search_and_explicit_delete():
+    js=(ROOT/'hub/static/meeting-review.js').read_text()
+    assert "review-delete" in js
+    assert "window.confirm" in js
+    assert "/api/meeting-review/search?q=" in js
+    assert "data-review-trans" in js

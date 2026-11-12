@@ -83,3 +83,25 @@ def test_validation_dismiss_and_independent_questions(tmp_path):
     assert c.post(url+'/convert',headers=h,json={'title':'Wrong'}).status_code==422
     assert c.post(url+'/dismiss',headers=h,json={}).status_code==200
     assert c.post(url+'/convert',headers=h,json={'title':'Wrong'}).status_code==422
+
+
+def test_quote_only_evidence_is_resolved_and_never_guessed(tmp_path):
+    c,h,_,text=setup(tmp_path)
+    payload=analysis(text)
+    full=copy.deepcopy(payload)
+    del payload['items'][0]['evidence']['start']
+    del payload['items'][0]['evidence']['end']
+    endpoint='/api/meeting-review/transcripts/trans1/analyses'
+    good=c.post(endpoint,headers=h,json=payload)
+    assert good.status_code==201,good.text
+    assert good.json()['duplicate'] is False
+    assert c.post(endpoint,headers=h,json=full).json()['duplicate'] is True
+    row=c.get('/api/meeting-review/transcripts/trans1/analyses').json()[0]['items'][0]
+    assert row['evidence_start']==text.index(row['evidence_quote'])
+    assert row['evidence_end']==row['evidence_start']+len(row['evidence_quote'])
+    bad=copy.deepcopy(payload);bad['items'][0]['evidence']['quote']='não foi dito'
+    assert c.post(endpoint,headers=h,json=bad).status_code==422
+    repeated=copy.deepcopy(payload);repeated['items'][0]['evidence']['quote']='proposta'
+    assert c.post(endpoint,headers=h,json=repeated).status_code==422
+    half=copy.deepcopy(payload);half['items'][0]['evidence']['start']=0
+    assert c.post(endpoint,headers=h,json=half).status_code==422

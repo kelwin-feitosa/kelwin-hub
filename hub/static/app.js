@@ -135,11 +135,14 @@ async function opportunitiesView(){
  filter();
 }
 
-let taskPage=0,taskStatus='all',taskQuery='';
+let taskPage=0,taskStatus='all',taskQuery='',taskRenderSequence=0;
 const TASK_PAGE_SIZE=30;
 async function tasksView(){
+ const renderId=++taskRenderSequence;
  const query=new URLSearchParams({limit:String(TASK_PAGE_SIZE),offset:String(taskPage*TASK_PAGE_SIZE),status:taskStatus,q:taskQuery});
  const data=await api('/api/tasks/page?'+query.toString());
+ // A response from a page we have already left may not replace another view.
+ if(tab!=='tasks'||renderId!==taskRenderSequence)return;
  if(taskPage>0&&data.total>0&&!data.items.length){taskPage=0;await tasksView();return}
  const options=[{value:'all',label:'Todas'},{value:'open',label:'Abertas'},
                 {value:'blocked',label:'Bloqueadas'},{value:'done',label:'Concluídas'}];

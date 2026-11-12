@@ -4,7 +4,7 @@ const safe=(v)=>String(v??'').replace(/[&<>"']/g,(x)=>({'&':'&amp;','<':'&lt;','
 const dateTime=(v)=>v?new Date(v).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'}):'Sem data';
 const localInputValue=(value)=>{const d=new Date(value);const local=new Date(d.getTime()-d.getTimezoneOffset()*60000);return local.toISOString().slice(0,16)};
 let csrf=null,tab='today',toastTimeout;
-const tabs={today:'Mesa de trabalho',tasks:'Tarefas',projects:'Projetos',contacts:'Contatos',opportunities:'Oportunidades',events:'Agenda',automations:'Automações'};
+const tabs={today:'Mesa de trabalho',tasks:'Tarefas',projects:'Projetos',contacts:'Contatos',opportunities:'Oportunidades',events:'Agenda',notes:'Notas',automations:'Automações'};
 function notify(message){const el=$('toast');el.textContent=message;el.classList.add('show');clearTimeout(toastTimeout);toastTimeout=setTimeout(()=>el.classList.remove('show'),3300)}
 async function api(url,method='GET',data){
  const headers={'Accept':'application/json'};
@@ -27,7 +27,7 @@ function openSearch(){
  $('search-dialog').showModal();$('search-query').focus();
 }
 function searchResult(item){
- const kind={projects:'Projeto',tasks:'Tarefa',contacts:'Contato',opportunities:'Oportunidade',events:'Agenda'}[item.kind]||'Registro';
+ const kind={projects:'Projeto',tasks:'Tarefa',contacts:'Contato',opportunities:'Oportunidade',events:'Agenda',notes:'Nota'}[item.kind]||'Registro';
  return `<button type="button" class="search-result" data-tab="${safe(item.kind)}" data-id="${safe(item.id)}"><span class="search-result-kind">${kind}</span><strong>${safe(item.title)}</strong><small>${safe(item.detail)}${item.status?' · '+safe(item.status):''}</small></button>`;
 }
 async function doSearch(){
@@ -51,7 +51,7 @@ function badge(label,type=''){return `<span class="pill ${type}">${safe(label)}<
 async function showTab(name,focusId=null){
  tab=name;document.querySelectorAll('[data-tab]').forEach(b=>{b.classList.toggle('active',b.dataset.tab===name);b.setAttribute('aria-current',b.dataset.tab===name?'page':'false')});
  $('pageTitle').textContent=tabs[name];$('content').innerHTML='<p class="muted">Carregando...</p>';
- try{const render={today:todayView,tasks:tasksView,projects:projectsView,contacts:contactsView,opportunities:opportunitiesView,events:eventsView,automations:automationsView};await render[name]();if(focusId&&name==='projects')await showProjectContext(focusId);if(focusId){const target=document.getElementById(`${name}-item-${focusId}`);if(target){target.scrollIntoView({block:'center',behavior:'auto'});target.tabIndex=-1;target.focus()}}}catch(error){$('content').innerHTML=panel('Não foi possível carregar',`<p>${safe(error.message)}</p>`)}
+ try{const render={today:todayView,tasks:tasksView,projects:projectsView,contacts:contactsView,opportunities:opportunitiesView,events:eventsView,notes:notesView,automations:automationsView};await render[name]();if(focusId&&name==='projects')await showProjectContext(focusId);if(focusId){const target=document.getElementById(`${name}-item-${focusId}`);if(target){target.scrollIntoView({block:'center',behavior:'auto'});target.tabIndex=-1;target.focus()}}}catch(error){$('content').innerHTML=panel('Não foi possível carregar',`<p>${safe(error.message)}</p>`)}
 }
 // The Mesa is a contextual projection, not another owner of tasks or opportunities.
 function workRow(item){
@@ -101,10 +101,11 @@ async function showProjectContext(id){
  region.textContent='Carregando contexto…';
  try{
   const data=await api('/api/projects/'+encodeURIComponent(id)+'/context');
+  const [linkedNotes,activity]=await Promise.all([api('/api/notes?project_id='+encodeURIComponent(id)),api('/api/activity?kind=project&ident='+encodeURIComponent(id))]);
   const c=data.counts;
   const overview=`${c.open} em andamento · ${c.blocked} bloqueadas · ${c.done} concluídas`;
   const taskRows=data.tasks.map(t=>`<article class="project-task"><div><strong>${safe(t.title)}</strong><small>${safe(t.status)}${t.due_at?' · '+dateTime(t.due_at):''}${t.opportunity_title?' · '+safe(t.opportunity_title):''}</small></div>${t.status!=='done'?`<button type="button" class="mini" data-do="complete" data-id="${safe(t.id)}">Concluir</button>`:''}</article>`).join('');
-  region.innerHTML=`<div class="project-context-head"><div><h3>Dentro deste projeto</h3><p>${safe(overview)}</p>${data.next_task?`<p>Próxima tarefa: <strong>${safe(data.next_task.title)}</strong></p>`:''}</div><button type="button" class="primary" data-do="add-project-task" data-id="${safe(id)}">+ Tarefa neste projeto</button></div><div class="project-task-list">${taskRows||'<p class="muted">Nenhuma tarefa vinculada ainda.</p>'}</div>`;
+  region.innerHTML=`<div class="project-context-head"><div><h3>Dentro deste projeto</h3><p>${safe(overview)}</p>${data.next_task?`<p>Próxima tarefa: <strong>${safe(data.next_task.title)}</strong></p>`:''}</div><button type="button" class="primary" data-do="add-project-task" data-id="${safe(id)}">+ Tarefa neste projeto</button></div><div class="project-task-list">${taskRows||'<p class="muted">Nenhuma tarefa vinculada ainda.</p>'}</div><div class="context-extra"><h4>Notas <button class="mini" type="button" data-do="add-project-note" data-id="${safe(id)}">+ Nota</button></h4>${linkedNotes.slice(0,8).map(n=>`<p><strong>${safe(n.title)}</strong> — ${safe(n.body.slice(0,140))}</p>`).join('')||'<p class="muted">Sem notas ainda.</p>'}<h4>Atividades registradas</h4>${activity.slice(0,8).map(a=>`<p><span class="muted">${dateTime(a.at)}</span> · ${safe(a.kind)} · ${safe(a.action)}</p>`).join('')||'<p class="muted">Sem ações registradas.</p>'}</div>`;
  }catch(error){region.textContent='Falha ao consultar projeto: '+error.message}
 }
 async function contactsView(){const data=await api('/api/contacts');$('content').innerHTML=`<div class="section-head"><p class="muted">Pessoas com quem você se relaciona profissionalmente.</p><button class="primary" data-do="add-contact">+ Novo contato</button></div>${panel('Lista de contatos',data.length?`<div class="list">${data.map(x=>`<div id="contacts-item-${safe(x.id)}" class="item"><div class="item-info"><strong>${safe(x.name)}</strong><small>${safe(x.company||'Sem empresa')} · ${safe(x.email||'Sem e-mail')}</small></div>${badge(x.category)}<button class="mini" data-do="edit-contact" data-id="${safe(x.id)}">Editar</button></div>`).join('')}</div>`:blank('Comece cadastrando um contato fictício para testar.'))}`}
@@ -134,19 +135,23 @@ async function opportunitiesView(){
 }
 
 async function tasksView(){const data=await api('/api/tasks');$('content').innerHTML=`<div class="section-head"><p class="muted">Tarefas próprias do Hub, com histórico de conclusão.</p><button class="primary" data-do="add-task">+ Nova tarefa</button></div>${panel('Todas as tarefas',data.length?`<div class="list">${data.map(x=>`<div id="tasks-item-${safe(x.id)}" class="item"><div class="item-info"><strong>${safe(x.title)}</strong><small>${x.due_at?dateTime(x.due_at):'Sem prazo'} · prioridade ${x.priority}</small></div><div class="row-actions">${badge(x.status)}<button class="mini" data-do="edit-task" data-id="${safe(x.id)}">Editar</button>${x.status!=='done'?`<button class="mini" data-do="complete" data-id="${safe(x.id)}">Concluir</button>`:''}</div></div>`).join('')}</div>`:blank('Nenhuma tarefa cadastrada.'))}`}
+async function notesView(){
+ const notes=await api('/api/notes');
+ $('content').innerHTML=`<div class="section-head"><p class="muted">Informações que merecem contexto, mas ainda não são tarefas.</p><button type="button" class="primary" data-do="add-note">+ Nova nota</button></div>${panel('Notas do Hub',notes.length?`<div class="list">${notes.map(n=>`<article id="notes-item-${safe(n.id)}" class="item"><div class="item-info"><strong>${safe(n.title)}</strong><small>${safe(n.body.slice(0,180))}</small><small>Atualizada ${dateTime(n.updated_at)}</small></div><button type="button" class="mini" data-do="edit-note" data-id="${safe(n.id)}">Editar</button></article>`).join('')}</div>`:blank('Ainda não há notas. Registre uma ideia para começar.'))}`;
+}
 async function eventsView(){const data=await api('/api/events');$('content').innerHTML=`<div class="section-head"><p class="muted">Eventos locais. Integrações externas serão adicionadas com seu consentimento.</p><button class="primary" data-do="add-event">+ Novo evento</button></div>${panel('Agenda local',data.length?`<div class="list">${data.map(x=>`<div id="events-item-${safe(x.id)}" class="item"><div class="item-info"><strong>${safe(x.title)}</strong><small>${dateTime(x.start_at)} até ${dateTime(x.end_at)}</small></div>${badge(x.status,x.status==='confirmed'?'good':'warn')}<button class="mini" data-do="edit-event" data-id="${safe(x.id)}">Status</button></div>`).join('')}</div>`:blank('Nenhum evento local registrado.'))}`}
 async function automationsView(){const data=await api('/api/automations'),runs=await api('/api/automation-runs'),health=await api('/api/automation-health');
  const cards=data.map(x=>{const enabled=x.status==='available';const c=x.settings||{};return `<section class="panel automation-card ${enabled?'':'disabled'}"><header>${badge(x.atlas)} ${badge(enabled?'Disponível':'Planejada',enabled?'good':'')}</header><h2>${safe(x.name)}</h2><p>${safe(x.description)}</p><small class="muted">Motor: ${safe(x.engine)} · risco: ${safe(x.risk)}</small>${enabled?`<footer><label><input id="autoEnabled" type="checkbox" ${c.enabled?'checked':''}> Ativa</label><label for="autoDays">Dias <input id="autoDays" type="number" min="1" max="365" value="${c.threshold_days}"></label></footer><footer><button class="mini" data-do="save-auto">Salvar</button><button class="primary" data-do="run-auto">Executar agora</button></footer><small class="muted">Última execução: ${c.last_run_at?dateTime(c.last_run_at):'nunca'}</small>`:''}</section>`}).join('');
  const history=runs.length?`<div class="list">${runs.slice(0,10).map(x=>`<div class="item"><div class="item-info"><strong>${safe(x.code)}</strong><small>${dateTime(x.executed_at)} · ${x.scanned} analisadas, ${x.created} alertas novos</small></div>${badge(x.status)}</div>`).join('')}</div>`:blank('Ainda não existem execuções.');
  $('content').innerHTML=`<p class="intro">Escolha, configure e teste automações. O n8n permanece opcional e pode ser habilitado depois.</p>${panel('Estado do agendador',`<p>${health.scheduler_enabled?'Agendador local habilitado':'Agendador local desativado'} · última checagem: ${health.last_check_at?dateTime(health.last_check_at):'ainda não realizada'}</p>${health.last_failure_type?`<p role="alert">Falha detectada: ${safe(health.last_failure_type)} · ${dateTime(health.last_failure_at)}</p>`:''}`)}<div class="cards">${cards}</div>${panel('Histórico de execução',history)}<div class="note">O n8n pode ser iniciado separadamente por Docker. O arquivo de workflow opcional está no pacote do projeto. Nenhuma automação deste piloto envia mensagens a terceiros.</div>`;
 }
-function openDialog(title,fields,submit){
- $('dialog-body').innerHTML=`<h2>${safe(title)}</h2>${fields.map(f=>`<div class="field"><label for="f_${safe(f.key)}">${safe(f.label)}</label>${f.type==='select'?`<select id="f_${safe(f.key)}" name="${safe(f.key)}" ${f.required?'required':''}>${f.options.map(o=>`<option value="${safe(o.value)}" ${f.value===o.value?'selected':''}>${safe(o.label)}</option>`).join('')}</select>`:`<input id="f_${safe(f.key)}" name="${safe(f.key)}" type="${safe(f.type||'text')}" ${f.required?'required':''} ${f.value?`value="${safe(f.value)}"`:''} ${f.min?`min="${safe(f.min)}"`:''} ${f.max?`max="${safe(f.max)}"`:''}>`}</div>`).join('')}`;
+function openDialog(title,fields,submit,onSuccess=null){
+ $('dialog-body').innerHTML=`<h2>${safe(title)}</h2>${fields.map(f=>`<div class="field"><label for="f_${safe(f.key)}">${safe(f.label)}</label>${f.type==='textarea'?`<textarea id="f_${safe(f.key)}" name="${safe(f.key)}" rows="5" maxlength="12000" ${f.required?'required':''}>${safe(f.value||'')}</textarea>`:f.type==='select'?`<select id="f_${safe(f.key)}" name="${safe(f.key)}" ${f.required?'required':''}>${f.options.map(o=>`<option value="${safe(o.value)}" ${f.value===o.value?'selected':''}>${safe(o.label)}</option>`).join('')}</select>`:`<input id="f_${safe(f.key)}" name="${safe(f.key)}" type="${safe(f.type||'text')}" ${f.required?'required':''} ${f.value?`value="${safe(f.value)}"`:''} ${f.min?`min="${safe(f.min)}"`:''} ${f.max?`max="${safe(f.max)}"`:''}>`}</div>`).join('')}`;
  $('dialog-error').textContent='';$('dialog').showModal();
  $('dynamic-form').onsubmit=async(e)=>{e.preventDefault();const values=Object.fromEntries(new FormData(e.target).entries());
   const invalid=fields.find(f=>f.required&&typeof values[f.key]==='string'&&!values[f.key].trim());
   if(invalid){$('dialog-error').textContent=`${invalid.label}: campo obrigatório não pode ficar vazio`;$(`f_${invalid.key}`)?.focus();return}
-  try{await submit(values);$('dialog').close();notify('Registro salvo');await showTab(tab)}catch(error){$('dialog-error').textContent=error.message}};
+  try{await submit(values);$('dialog').close();notify('Registro salvo');if(onSuccess){await onSuccess()}else{await showTab(tab)}}catch(error){$('dialog-error').textContent=error.message}};
 }
 const field=(key,label,type='text',required=true)=>({key,label,type,required});
 async function addContact(){openDialog('Novo contato',[field('name','Nome'),field('company','Empresa','text',false),field('email','E-mail','email',false),field('phone','Telefone','text',false)],(x)=>api('/api/contacts','POST',x))}
@@ -154,6 +159,21 @@ async function addProject(){openDialog('Novo projeto',[field('name','Nome'),fiel
 async function addOpportunity(){const contacts=await api('/api/contacts');if(!contacts.length){notify('Cadastre um contato primeiro');await showTab('contacts');return}
  openDialog('Nova oportunidade',[{key:'contact_id',label:'Contato',type:'select',required:true,options:contacts.map(x=>({value:x.id,label:x.name}))},field('title','Descrição'),{key:'kind',label:'Categoria',type:'select',required:true,options:[{value:'service',label:'Serviço/cliente'},{value:'job',label:'Candidatura'},{value:'music',label:'Música'},{value:'other',label:'Outra'}]},field('next_action','Próxima ação'),field('followup_at','Prazo para retorno','datetime-local',false),field('value_brl','Valor estimado (R$)','number',false)],(x)=>api('/api/opportunities','POST',{...x,followup_at:x.followup_at||null,value_brl:x.value_brl||null}))}
 async function addTask(opportunityId,projectId=null){const projects=await api('/api/projects');const linked=opportunityId?(await api('/api/opportunities')).find(x=>x.id===opportunityId):null;const opts=[{value:'',label:'Sem projeto'},...projects.map(x=>({value:x.id,label:x.name}))];openDialog('Nova tarefa',[{...field('title','O que fazer?'),value:linked?.next_action||''},{key:'project_id',label:'Projeto',type:'select',required:false,value:projectId||'',options:opts},{...field('due_at','Prazo','datetime-local',false),value:linked?.followup_at?localInputValue(linked.followup_at):''},{key:'priority',label:'Prioridade',type:'select',required:true,options:[{value:'1',label:'Normal'},{value:'2',label:'Alta'},{value:'3',label:'Urgente'},{value:'0',label:'Baixa'}]}],(x)=>api('/api/tasks','POST',{...x,priority:Number(x.priority),project_id:x.project_id||null,opportunity_id:opportunityId||null,due_at:x.due_at||null}))}
+async function addNote(projectId=null){
+ const [projects,contacts,opportunities]=await Promise.all([api('/api/projects'),api('/api/contacts'),api('/api/opportunities')]);
+ const options=(rows,label)=>[{value:'',label},...rows.map(item=>({value:item.id,label:item.name||item.title}))];
+ openDialog('Nova nota',[field('title','Título'),{key:'body',label:'Conteúdo',type:'textarea',required:true},
+ {key:'project_id',label:'Projeto',type:'select',value:projectId||'',required:false,options:options(projects,'Sem projeto')},
+ {key:'contact_id',label:'Contato',type:'select',required:false,options:options(contacts,'Sem contato')},
+ {key:'opportunity_id',label:'Oportunidade',type:'select',required:false,options:options(opportunities,'Sem oportunidade')}],
+ x=>api('/api/notes','POST',{...x,project_id:x.project_id||null,contact_id:x.contact_id||null,opportunity_id:x.opportunity_id||null}),
+ projectId?()=>showTab('projects',projectId):null);
+}
+async function editNote(id){
+ const note=(await api('/api/notes')).find(x=>x.id===id);if(!note)throw Error('Nota não encontrada');
+ openDialog('Editar nota',[{...field('title','Título'),value:note.title},
+ {key:'body',label:'Conteúdo',type:'textarea',required:true,value:note.body}],x=>api(`/api/notes/${id}`,'PATCH',x));
+}
 async function addEvent(){openDialog('Novo evento',[field('title','Título'),field('start_at','Início','datetime-local'),field('end_at','Fim','datetime-local'),{key:'status',label:'Confirmação',type:'select',required:true,options:[{value:'confirmed',label:'Confirmado'},{value:'proposed',label:'Apenas proposto'}]}],(x)=>api('/api/events','POST',x))}
 async function editProject(id){const item=(await api('/api/projects')).find(x=>x.id===id);if(!item)throw Error('Projeto não encontrado');
  openDialog('Editar projeto',[{...field('name','Nome'),value:item.name},{...field('area','Área'),value:item.area},{key:'status',label:'Estado',type:'select',value:item.status,required:true,options:[{value:'active',label:'Ativo'},{value:'paused',label:'Pausado'},{value:'completed',label:'Concluído'},{value:'archived',label:'Arquivado'}]}],x=>api(`/api/projects/${id}`,'PATCH',x))}
@@ -166,7 +186,7 @@ async function editTask(id){const item=(await api('/api/tasks')).find(x=>x.id===
 async function editEvent(id){const item=(await api('/api/events')).find(x=>x.id===id);if(!item)throw Error('Evento não encontrado');
  openDialog('Situação do evento',[{key:'status',label:'Confirmação',type:'select',required:true,value:item.status,options:[{value:'confirmed',label:'Confirmado'},{value:'proposed',label:'Apenas proposto'},{value:'cancelled',label:'Cancelado'}]}],x=>api(`/api/events/${id}`,'PATCH',x))}
 async function handleAction(button){const a=button.dataset.do,id=button.dataset.id;const parentRegion=button.closest('.project-context');const activeProject=parentRegion?.id.replace('project-context-','');
- try{switch(a){case'add-contact':await addContact();return;case'add-project':await addProject();return;case'add-opportunity':await addOpportunity();return;case'add-task':await addTask(null);return;case'add-linked-task':await addTask(id);return;case'add-project-task':await addTask(null,id);return;case'project-context':await showProjectContext(id);return;case'add-event':await addEvent();return;case'edit-project':await editProject(id);return;case'edit-contact':await editContact(id);return;case'edit-opportunity':await editOpportunity(id);return;case'edit-task':await editTask(id);return;case'edit-event':await editEvent(id);return;
+ try{switch(a){case'add-contact':await addContact();return;case'add-note':await addNote();return;case'add-project-note':await addNote(id);return;case'edit-note':await editNote(id);return;case'add-project':await addProject();return;case'add-opportunity':await addOpportunity();return;case'add-task':await addTask(null);return;case'add-linked-task':await addTask(id);return;case'add-project-task':await addTask(null,id);return;case'project-context':await showProjectContext(id);return;case'add-event':await addEvent();return;case'edit-project':await editProject(id);return;case'edit-contact':await editContact(id);return;case'edit-opportunity':await editOpportunity(id);return;case'edit-task':await editTask(id);return;case'edit-event':await editEvent(id);return;
  case'open-task':await showTab('tasks',id);return;case'open-project':await showTab('projects',id);return;case'open-opportunity':await showTab('opportunities',id);return;case'open-events':await showTab('events');return;
  case'complete':await api(`/api/tasks/${id}`,'PATCH',{status:'done'});break;
  case'contacted':await api(`/api/opportunities/${id}/contact`,'POST',{});break;
@@ -185,7 +205,7 @@ window.addEventListener('DOMContentLoaded',async()=>{
  $('search-results').addEventListener('click',async e=>{
   const b=e.target.closest('button[data-tab]');if(!b)return;
   const tabName=b.dataset.tab,id=b.dataset.id;
-  if(!['tasks','projects','contacts','opportunities','events'].includes(tabName))return;
+  if(!['tasks','projects','contacts','opportunities','events','notes'].includes(tabName))return;
   closeSearch();await showTab(tabName,id);
  });
  $('nav').addEventListener('click',(e)=>{const b=e.target.closest('[data-tab]');if(b)showTab(b.dataset.tab)});

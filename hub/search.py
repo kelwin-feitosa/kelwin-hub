@@ -31,6 +31,14 @@ KINDS = {
                   c.name || ' ' || c.company || ' ' || COALESCE(c.email, '') || ' ' || o.next_action AS terms
                   FROM opportunities o JOIN contacts c ON c.id=o.contact_id''',
     },
+    'notes': {
+        'label': 'Notas',
+        'sql': '''SELECT n.id, n.title, substr(n.body,1,160) AS detail, 'note' AS status,
+                  n.body || ' ' || COALESCE(p.name,'') || ' ' || COALESCE(c.name,'') || ' ' || COALESCE(o.title,'') AS terms
+                  FROM notes n LEFT JOIN projects p ON p.id=n.project_id
+                  LEFT JOIN contacts c ON c.id=n.contact_id
+                  LEFT JOIN opportunities o ON o.id=n.opportunity_id''',
+    },
     'events': {
         'label': 'Agenda',
         'sql': 'SELECT id, title, start_at AS detail, status FROM events',

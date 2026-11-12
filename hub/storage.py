@@ -6,7 +6,11 @@ import sqlite3
 import uuid
 
 MIGRATIONS = Path(__file__).resolve().parent / "migrations"
-LATEST_SCHEMA_VERSION = 1
+MIGRATION_NAMES = {
+    1: '001_sessions_scheduler_integrity.sql',
+    2: '002_notes_context.sql',
+}
+LATEST_SCHEMA_VERSION = max(MIGRATION_NAMES)
 
 
 def now_utc() -> str:
@@ -87,7 +91,7 @@ class Store:
                 raise RuntimeError('Banco de versão superior ao aplicativo; atualização necessária')
             db.executescript(SCHEMA)
             for version in range(current + 1, LATEST_SCHEMA_VERSION + 1):
-                sql = (MIGRATIONS / f'{version:03d}_sessions_scheduler_integrity.sql').read_text(encoding='utf-8')
+                sql = (MIGRATIONS / MIGRATION_NAMES[version]).read_text(encoding='utf-8')
                 # The migration, data preservation and version bump are one transaction.
                 # executescript() commits its prior transaction; BEGIN lives inside the script.
                 db.executescript(f'BEGIN IMMEDIATE;\n{sql}\nPRAGMA user_version={version};\nCOMMIT;')

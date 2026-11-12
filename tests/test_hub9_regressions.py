@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 
 from hub.api import create_app
 from hub.security import hash_password
-from hub.storage import SCHEMA, Store
+from hub.storage import SCHEMA, Store, LATEST_SCHEMA_VERSION
 
 
 @pytest.mark.parametrize(('endpoint', 'payload'), [
@@ -200,7 +200,7 @@ def test_backup_restore_migrated_schema(tmp_path):
     restore_db(backup, restored, 'Senha-Ficticia-Backup-2026!')
     with sqlite3.connect(restored) as db:
         assert db.execute('PRAGMA integrity_check').fetchone()[0] == 'ok'
-        assert db.execute('PRAGMA user_version').fetchone()[0] == 1
+        assert db.execute('PRAGMA user_version').fetchone()[0] == LATEST_SCHEMA_VERSION
         assert db.execute('SELECT name FROM projects WHERE id=?', ('sample',)).fetchone()[0] == 'Projeto Ficticio'
         assert db.execute('SELECT name FROM sqlite_master WHERE name="sessions"').fetchone()
     with pytest.raises(FileExistsError):

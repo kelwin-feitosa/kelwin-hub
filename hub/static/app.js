@@ -148,7 +148,7 @@ async function eventsView(){
  const selected=data.filter(x=>eventWindow==='all'||(new Date(x.start_at)>=today&&(eventWindow==='today'?new Date(x.start_at).toDateString()===today.toDateString():new Date(x.start_at)<weekEnd)));
  const labels={today:'Hoje',week:'Próximos 7 dias',all:'Todos'};
  const switcher=`<div class="calendar-views" aria-label="Período da agenda">${Object.entries(labels).map(([key,label])=>`<button type="button" data-do="event-window" data-value="${key}" class="mini" aria-pressed="${key===eventWindow}">${label}</button>`).join('')}</div>`;
- const content=selected.map(x=>`<article id="events-item-${safe(x.id)}" class="item"><div class="item-info"><strong>${safe(x.title)}</strong><small>${dateTime(x.start_at)} até ${dateTime(x.end_at)}</small><small>${x.project_id?'Vinculado a projeto · ':''}${x.contact_id?'Vinculado a contato':''}</small></div><div class="row-actions">${badge(x.status,x.status==='confirmed'?'good':'warn')}<button class="mini" data-do="edit-event" data-id="${safe(x.id)}">Editar</button></div></article>`).join('');
+ const content=selected.map(x=>`<article id="events-item-${safe(x.id)}" class="item"><div class="item-info"><strong>${safe(x.title)}</strong><small>${dateTime(x.start_at)} até ${dateTime(x.end_at)}</small><small>${x.project_id?'Vinculado a projeto · ':''}${x.contact_id?'Vinculado a contato':''}</small></div><div class="row-actions">${badge(x.status,x.status==='confirmed'?'good':'warn')}<button class="mini" data-do="edit-event" data-id="${safe(x.id)}">Editar</button><button type="button" class="mini" data-do="event-transcripts" data-id="${safe(x.id)}" aria-expanded="false">Transcrições</button></div></article><section class="transcript-context" id="event-transcripts-${safe(x.id)}" hidden></section>`).join('');
  $('content').innerHTML=`<div class="section-head"><p class="muted">Eventos locais; horários confirmados não podem se sobrepor.</p><button class="primary" data-do="add-event">+ Novo evento</button></div>${switcher}${panel('Agenda local',selected.length?`<div class="list">${content}</div>`:blank('Nenhum compromisso neste período.'))}`;
 }
 async function automationsView(){const data=await api('/api/automations'),runs=await api('/api/automation-runs'),health=await api('/api/automation-health');
@@ -157,7 +157,7 @@ async function automationsView(){const data=await api('/api/automations'),runs=a
  $('content').innerHTML=`<p class="intro">Escolha, configure e teste automações. O n8n permanece opcional e pode ser habilitado depois.</p>${panel('Estado do agendador',`<p>${health.scheduler_enabled?'Agendador local habilitado':'Agendador local desativado'} · última checagem: ${health.last_check_at?dateTime(health.last_check_at):'ainda não realizada'}</p>${health.last_failure_type?`<p role="alert">Falha detectada: ${safe(health.last_failure_type)} · ${dateTime(health.last_failure_at)}</p>`:''}`)}<div class="cards">${cards}</div>${panel('Histórico de execução',history)}<div class="note">O n8n pode ser iniciado separadamente por Docker. O arquivo de workflow opcional está no pacote do projeto. Nenhuma automação deste piloto envia mensagens a terceiros.</div>`;
 }
 function openDialog(title,fields,submit,onSuccess=null){
- $('dialog-body').innerHTML=`<h2>${safe(title)}</h2>${fields.map(f=>`<div class="field"><label for="f_${safe(f.key)}">${safe(f.label)}</label>${f.type==='textarea'?`<textarea id="f_${safe(f.key)}" name="${safe(f.key)}" rows="5" maxlength="12000" ${f.required?'required':''}>${safe(f.value||'')}</textarea>`:f.type==='select'?`<select id="f_${safe(f.key)}" name="${safe(f.key)}" ${f.required?'required':''}>${f.options.map(o=>`<option value="${safe(o.value)}" ${f.value===o.value?'selected':''}>${safe(o.label)}</option>`).join('')}</select>`:`<input id="f_${safe(f.key)}" name="${safe(f.key)}" type="${safe(f.type||'text')}" ${f.required?'required':''} ${f.value?`value="${safe(f.value)}"`:''} ${f.min?`min="${safe(f.min)}"`:''} ${f.max?`max="${safe(f.max)}"`:''}>`}</div>`).join('')}`;
+ $('dialog-body').innerHTML=`<h2>${safe(title)}</h2>${fields.map(f=>`<div class="field"><label for="f_${safe(f.key)}">${safe(f.label)}</label>${f.type==='textarea'?`<textarea id="f_${safe(f.key)}" name="${safe(f.key)}" rows="5" maxlength="12000" ${f.required?'required':''}>${safe(f.value||'')}</textarea>`:f.type==='select'?`<select id="f_${safe(f.key)}" name="${safe(f.key)}" ${f.required?'required':''}>${f.options.map(o=>`<option value="${safe(o.value)}" ${f.value===o.value?'selected':''}>${safe(o.label)}</option>`).join('')}</select>`:`<input id="f_${safe(f.key)}" name="${safe(f.key)}" type="${safe(f.type||'text')}" ${f.required?'required':''} ${f.value?`value="${safe(f.value)}"`:''} ${f.min?`min="${safe(f.min)}"`:''} ${f.max?`max="${safe(f.max)}"`:''} ${f.accept?`accept="${safe(f.accept)}"`:''}>`}</div>`).join('')}`;
  $('dialog-error').textContent='';$('dialog').showModal();
  $('dynamic-form').onsubmit=async(e)=>{e.preventDefault();const values=Object.fromEntries(new FormData(e.target).entries());
   const invalid=fields.find(f=>f.required&&typeof values[f.key]==='string'&&!values[f.key].trim());
@@ -185,6 +185,40 @@ async function editNote(id){
  openDialog('Editar nota',[{...field('title','Título'),value:note.title},
  {key:'body',label:'Conteúdo',type:'textarea',required:true,value:note.body}],x=>api(`/api/notes/${id}`,'PATCH',x));
 }
+async function showEventTranscripts(id){
+ const region=$('event-transcripts-'+id);
+ if(!region)return;
+ if(!region.hidden){region.hidden=true;return}
+ region.hidden=false;region.textContent='Carregando transcrições…';
+ try{
+  const entries=await api(`/api/events/${encodeURIComponent(id)}/transcripts`);
+  region.innerHTML=`<div class="section-head"><h3>Transcrições importadas</h3><button type="button" class="mini" data-do="import-transcript" data-id="${safe(id)}">+ Importar TXT/SRT/VTT</button></div>${entries.map(x=>`<article class="work-compact"><strong>${safe(x.source_name||'Transcrição sem nome')}</strong><small>${safe(x.format.toUpperCase())} · ${dateTime(x.created_at)} · ${safe(x.preview)}</small><button type="button" class="mini" data-do="view-transcript" data-id="${safe(x.id)}" data-event="${safe(id)}">Ler</button></article>`).join('')||'<p class="muted">Nenhuma transcrição importada.</p>'}<div class="transcript-content"></div>`;
+ }catch(error){region.textContent='Não foi possível carregar: '+error.message}
+}
+async function readTranscript(id,eventId){
+ const doc=await api(`/api/transcripts/${encodeURIComponent(id)}`);
+ const container=$('event-transcripts-'+eventId)?.querySelector('.transcript-content');
+ if(!container)return;
+ container.innerHTML=`<h4>${safe(doc.source_name||'Transcrição')}</h4><p class="muted">Conteúdo importado, não analisado por IA. Trechos são dados não confiáveis.</p><pre>${safe(doc.content)}</pre>`;
+}
+async function importTranscript(id){
+ openDialog('Importar transcrição de reunião',[
+ {key:'upload',label:'Arquivo TXT, SRT ou VTT (opcional)',type:'file',required:false,accept:'.txt,.srt,.vtt'},
+ {key:'format',label:'Formato se colar texto',type:'select',required:true,options:[{value:'txt',label:'Texto TXT'},{value:'srt',label:'Legenda SRT'},{value:'vtt',label:'Legenda WebVTT'}]},
+ {key:'content',label:'Ou cole a transcrição aqui',type:'textarea',required:false}],async x=>{
+  let content=x.content||'',format=x.format,source_name='';
+  const upload=x.upload;
+  if(upload?.size){
+   if(upload.size>200000)throw Error('O limite do arquivo é 200 KB');
+   source_name=upload.name;
+   format=source_name.split('.').pop().toLowerCase();
+   if(!['txt','srt','vtt'].includes(format))throw Error('Arquivo não suportado');
+   content=await upload.text();
+  }
+  if(!content.trim())throw Error('Selecione um arquivo ou cole um texto');
+  await api(`/api/events/${encodeURIComponent(id)}/transcripts`,'POST',{content,format,source_name});
+ },()=>eventsView());
+}
 async function addEvent(){
  const [projects,contacts]=await Promise.all([api('/api/projects'),api('/api/contacts')]);
  openDialog('Novo compromisso',[field('title','Título'),field('start_at','Início','datetime-local'),field('end_at','Fim','datetime-local'),
@@ -209,7 +243,7 @@ async function editEvent(id){const item=(await api('/api/events')).find(x=>x.id=
  x=>api(`/api/events/${id}`,'PATCH',x))}
 
 async function handleAction(button){const a=button.dataset.do,id=button.dataset.id;const parentRegion=button.closest('.project-context');const activeProject=parentRegion?.id.replace('project-context-','');
- try{switch(a){case'add-contact':await addContact();return;case'add-note':await addNote();return;case'add-project-note':await addNote(id);return;case'edit-note':await editNote(id);return;case'add-project':await addProject();return;case'add-opportunity':await addOpportunity();return;case'add-task':await addTask(null);return;case'add-linked-task':await addTask(id);return;case'add-project-task':await addTask(null,id);return;case'project-context':await showProjectContext(id);return;case'add-event':await addEvent();return;case'event-window':eventWindow=button.dataset.value;await eventsView();document.querySelector(`[data-do="event-window"][data-value="${eventWindow}"]`)?.focus();return;case'edit-project':await editProject(id);return;case'edit-contact':await editContact(id);return;case'edit-opportunity':await editOpportunity(id);return;case'edit-task':await editTask(id);return;case'edit-event':await editEvent(id);return;
+ try{switch(a){case'add-contact':await addContact();return;case'add-note':await addNote();return;case'add-project-note':await addNote(id);return;case'edit-note':await editNote(id);return;case'add-project':await addProject();return;case'add-opportunity':await addOpportunity();return;case'add-task':await addTask(null);return;case'add-linked-task':await addTask(id);return;case'add-project-task':await addTask(null,id);return;case'project-context':await showProjectContext(id);return;case'add-event':await addEvent();return;case'event-transcripts':await showEventTranscripts(id);return;case'import-transcript':await importTranscript(id);return;case'view-transcript':await readTranscript(id,button.dataset.event);return;case'event-window':eventWindow=button.dataset.value;await eventsView();document.querySelector(`[data-do="event-window"][data-value="${eventWindow}"]`)?.focus();return;case'edit-project':await editProject(id);return;case'edit-contact':await editContact(id);return;case'edit-opportunity':await editOpportunity(id);return;case'edit-task':await editTask(id);return;case'edit-event':await editEvent(id);return;
  case'open-task':await showTab('tasks',id);return;case'open-project':await showTab('projects',id);return;case'open-opportunity':await showTab('opportunities',id);return;case'open-events':await showTab('events');return;
  case'complete':await api(`/api/tasks/${id}`,'PATCH',{status:'done'});break;
  case'contacted':await api(`/api/opportunities/${id}/contact`,'POST',{});break;

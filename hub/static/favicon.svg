@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Kelwin Hub">
+  <rect width="64" height="64" rx="15" fill="#222d3d"/>
+  <path d="M18 15v34M22 34l21-19M23 34l22 17" stroke="#dbe7ff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <circle cx="47" cy="45" r="5" fill="#e8b779"/>
+</svg>

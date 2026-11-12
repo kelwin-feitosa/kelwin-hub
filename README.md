@@ -141,3 +141,7 @@ node --check hub/static/app.js
 - `docs/ui-desktop.png`, `docs/ui-mobile.png` — capturas de interface com respostas **simuladas**, não homologação do backend no navegador.
 
 Este repositório é **um piloto de validação**, sem pretensão de substituir a especificação canônica `Kelwin_Hub_Especificacao_Requisitos.md` da Biblioteca do ChatGPT. Mudanças de direção só se tornam definitivas após avaliação comparativa no Pop!_OS e atualização do documento original.
+
+### Evolução da identidade visual (Missão 11.0)
+
+O tema escuro usa agora superfícies grafite/ardósia e acento azul suave, sem fundos verdes. O favicon local é atendido em `/favicon.ico`; a preferência do sistema orienta o primeiro acesso, e a escolha manual permanece salva no navegador. A decisão e suas limitações estão em `docs/ADR-004-TEMA-ESCURA-FAVICON.md`.

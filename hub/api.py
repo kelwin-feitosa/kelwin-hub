@@ -267,6 +267,10 @@ def create_app(database_path: str | None = None, *, password_hash: str | None = 
     def page():
         return FileResponse(STATIC/'index.html')
 
+    @app.get('/favicon.ico', include_in_schema=False)
+    def favicon():
+        return FileResponse(STATIC / 'favicon.svg', media_type='image/svg+xml')
+
     @app.get('/healthz')
     def health():
         try:

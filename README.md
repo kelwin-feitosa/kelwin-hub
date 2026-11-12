@@ -170,3 +170,9 @@ A seção **Oportunidades** apresenta agora retornos vencidos, da próxima seman
 - A agenda oferece Hoje / Próximos 7 dias / Todos e edição de título, período e confirmação.
 - Horários **confirmados** são protegidos contra sobreposição em transação; tentativas conflitantes retornam HTTP 409. Horários adjacentes são permitidos, propostas não bloqueiam e eventos cancelados não bloqueiam. `GET /api/events/conflicts` permite consulta autenticada.
 - `project_id` e `contact_id` opcionais permitem recuperar compromissos no projeto, sem integração externa. A migração versão 3 é aditiva. Veja `docs/ADR-009-AGENDA-LOCAL.md`.
+
+## Missão 12.0 — transcrições locais autorizadas
+
+- Importar transcrições já existentes de reuniões TXT, SRT ou VTT (até 200 KB UTF-8) na Agenda; consultar origem e conteúdo, incluindo marcas de tempo explícitas para legendas. Tudo permanece no SQLite local.
+- Nenhuma gravação ou participação de bot é feita; nenhuma IA é chamada. Texto da transcrição é não confiável e não gera automaticamente tarefas, compromissos ou mensagens. A exportação JSON agora pode conter texto de reuniões e deve ficar protegida. Consulte `docs/ADR-010-TRANSCRICOES-LOCAIS.md`.
+- A migração versão 4 é aditiva e não exige reconfiguração de senha.

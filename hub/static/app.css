@@ -166,3 +166,5 @@ a:focus-visible,.context-link:focus-visible,.text-action:focus-visible{outline:3
 .field textarea{display:block;width:100%;padding:11px 12px;border:1px solid var(--border);border-radius:9px;background:var(--panel);color:var(--text);resize:vertical}
 
 .calendar-views{display:flex;flex-wrap:wrap;gap:8px}.calendar-views [aria-pressed='true']{background:var(--panel2);color:var(--accent);border-color:var(--accent)}
+
+.transcript-context{padding:16px;border:1px solid var(--border);border-radius:10px;margin:5px 0 20px;background:var(--panel2);display:grid;gap:12px}.transcript-context[hidden]{display:none}.transcript-context h3{font-size:15px}.transcript-content pre{white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;max-height:370px;overflow:auto;background:var(--panel);padding:12px;border:1px solid var(--border);border-radius:8px;font:13px/1.6 ui-monospace,monospace}

@@ -23,6 +23,7 @@ from .workspace import load_workspace
 from .search import search as search_records
 from .project_context import load_project_context
 from .opportunity_board import load_board
+from .transcripts import validate_text, segments, MAX_TRANSCRIPT_BYTES
 
 LOG = logging.getLogger(__name__)
 STATIC = Path(__file__).parent / 'static'
@@ -186,6 +187,11 @@ class NoteIn(Strict):
 class NoteUpdate(Strict):
     title: str | None = Field(default=None,min_length=1,max_length=160)
     body: str | None = Field(default=None,min_length=1,max_length=12000)
+
+class TranscriptIn(Strict):
+    format: str
+    content: str = Field(min_length=1,max_length=200000)
+    source_name: str = Field(default='',max_length=180)
 
 class AutomationIn(Strict):
     enabled: bool
@@ -597,6 +603,8 @@ def create_app(database_path: str | None = None, *, password_hash: str | None = 
             if kind in ('project','contact'):
                 clauses.append(f"(a.kind='event' AND a.entity_id IN (SELECT e.id FROM events e WHERE e.{link}=?))")
                 params.append(ident)
+                clauses.append(f"(a.kind='transcript' AND a.entity_id IN (SELECT m.id FROM meeting_transcripts m JOIN events e ON e.id=m.event_id WHERE e.{link}=?))")
+                params.append(ident)
             if kind in ('project','opportunity'):
                 clauses.append(f"(a.kind='task' AND a.entity_id IN (SELECT t.id FROM tasks t WHERE t.{link}=?))")
                 params.append(ident)
@@ -672,6 +680,37 @@ def create_app(database_path: str | None = None, *, password_hash: str | None = 
             record(db,'event',ident,'update')
         return {'ok':True}
 
+    @app.get('/api/events/{ident}/transcripts')
+    def event_transcripts(ident: str,_=Depends(require_login)):
+        with store.connection() as db:
+            if not db.execute('SELECT 1 FROM events WHERE id=?',(ident,)).fetchone():
+                raise HTTPException(404,'Compromisso não encontrado')
+            return rows(db.execute("SELECT id,event_id,format,source_name,created_at,substr(content,1,160) AS preview FROM meeting_transcripts WHERE event_id=? ORDER BY created_at DESC,id DESC LIMIT 100",(ident,)))
+
+    @app.post('/api/events/{ident}/transcripts',status_code=201)
+    def add_transcript(ident: str,data: TranscriptIn,_=Depends(require_login)):
+        try:
+            text=validate_text(data.content,data.format)
+        except ValueError as exc:
+            raise HTTPException(422,str(exc)) from exc
+        trans_id=new_id()
+        with store.transaction() as db:
+            if not db.execute('SELECT 1 FROM events WHERE id=?',(ident,)).fetchone():
+                raise HTTPException(404,'Compromisso não encontrado')
+            db.execute('INSERT INTO meeting_transcripts VALUES (?,?,?,?,?,?)',
+                       (trans_id,ident,data.format,data.source_name.strip(),text,now_utc()))
+            record(db,'transcript',trans_id,'import')
+        return {'id':trans_id}
+
+    @app.get('/api/transcripts/{ident}')
+    def transcript_detail(ident: str,_=Depends(require_login)):
+        with store.connection() as db:
+            raw=db.execute('SELECT * FROM meeting_transcripts WHERE id=?',(ident,)).fetchone()
+            if raw is None:raise HTTPException(404,'Transcrição não encontrada')
+            doc=dict(raw)
+        doc['segments']=segments(doc['content'],doc['format'])
+        return doc
+
     @app.get('/api/automations')
     def automations(_=Depends(require_login)):
         with store.connection() as db:
@@ -729,7 +768,7 @@ def create_app(database_path: str | None = None, *, password_hash: str | None = 
 
     @app.get('/api/export')
     def export_owned_data(_=Depends(require_login)):
-        allowed=('projects','contacts','opportunities','tasks','events','notes','automation_configs','automation_runs','alerts','audit')
+        allowed=('projects','contacts','opportunities','tasks','events','notes','meeting_transcripts','automation_configs','automation_runs','alerts','audit')
         with store.connection() as db:
             result={'version':1,'generated_at':now_utc(),
                     'warning':'Contém informações privadas. Armazene em local protegido.'}

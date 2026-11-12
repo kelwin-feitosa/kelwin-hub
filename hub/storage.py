@@ -10,6 +10,7 @@ MIGRATION_NAMES = {
     1: '001_sessions_scheduler_integrity.sql',
     2: '002_notes_context.sql',
     3: '003_event_context.sql',
+    4: '004_transcripts.sql',
 }
 LATEST_SCHEMA_VERSION = max(MIGRATION_NAMES)
 

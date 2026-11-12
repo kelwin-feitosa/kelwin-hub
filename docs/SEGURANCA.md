@@ -28,3 +28,8 @@
 ## Revisão antes de dados reais
 
 Executar um threat model mínimo, validar a imagem Docker real, testar backup/restore em máquina isolada, conferir permissões do volume, registrar versões, validar importação do n8n, implementar atualização segura e definir política de retenção. Nenhuma configuração de rede externa foi aplicada nesta entrega.
+
+
+### FORJA 13.5 - Restricao de Host
+
+O backend rejeita Host inesperado (400) via TrustedHostMiddleware. Sao aceitos 127.0.0.1, localhost, hub (Docker Compose/n8n opcional) e testserver (testes). Se no futuro houver VPN, dominio proprio ou reverse proxy, esta lista precisa de revisao explicita e medidas adicionais de HTTPS/rede; nao publicar o Hub administrativo apenas para suportar um host externo. Nenhum listener foi alterado.

@@ -194,3 +194,8 @@ Na Agenda, escolha **Horários livres** para cadastrar faixas semanais, consulta
 ## Missão 13.6 — Navegação ÓRBITA
 
 A navegação principal possui quatro destinos estáveis: **Mesa, Projetos, Agenda e Explorar**. As oito áreas originais continuam no catálogo **Explorar** e no iniciador **Buscar / Ctrl+K**, que combina resultados do endpoint local de busca com destinos e ações de criação sem nova API. O botão **Novo** abre a mesma busca filtrada para criação. No celular, a navegação usa um dock inferior com quatro áreas, evitando a faixa horizontal rolável; exportação e encerramento da sessão permanecem disponíveis em Explorar. Nenhuma migração ou serviço pago foi adicionado. Ver `docs/ADR-013-NAVEGACAO-ORBITA.md`.
+
+
+### NEXO 14.0 — Índices de contexto
+
+A migração **007** acrescenta índices para consultas de tarefas por projeto e oportunidade, sem excluir nem transformar registros. O esquema é atualizado transacionalmente pelo mecanismo existente na primeira abertura após atualização. O benchmark sintético reproduzível pode ser executado com `python scripts/benchmark_nexo_indexes.py`; resultados não representam o desempenho da máquina do usuário. Antes de atualizar um banco com registros importantes, faça backup. Detalhes em `docs/ADR-015-INDICES-CONTEXTO-NEXO.md`.

@@ -1,0 +1,13 @@
+#availability-dialog{width:min(750px,calc(100vw - 24px));max-height:90dvh;overflow:auto}
+.availability-head{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:10px}
+.availability-head h2{margin:0}
+.availability-section{padding-top:16px;margin-top:18px;border-top:1px solid var(--border)}
+.availability-section h3{margin-bottom:9px;font-size:16px}
+.availability-fields{display:flex;align-items:end;gap:10px;flex-wrap:wrap;margin:12px 0}
+.availability-fields label,.availability-book-title{display:grid;gap:5px;font-size:12px;color:var(--muted)}
+.availability-fields input,.availability-fields select,.availability-book-title input{min-height:38px;min-width:0;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--panel);color:var(--text)}
+.availability-window{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:9px;border-bottom:1px solid var(--border);padding:9px 0;font-size:13px}
+.availability-book-title{max-width:400px;margin:18px 0 10px}
+#availability-slots{display:flex;flex-wrap:wrap;gap:8px;align-items:center;min-height:50px}
+.availability-slot{min-width:116px}
+@media(max-width:600px){.availability-fields{display:grid;grid-template-columns:1fr 1fr}.availability-fields button{grid-column:1/-1}}

@@ -5,6 +5,7 @@ on:
       - 'hub/**'
       - 'tests/browser_orbita_e2e.py'
       - 'tests/browser_nexo_e2e.py'
+      - 'tests/browser_horizonte_e2e.py'
       - '.github/workflows/browser.yml'
   push:
     branches: [main]
@@ -12,6 +13,7 @@ on:
       - 'hub/**'
       - 'tests/browser_orbita_e2e.py'
       - 'tests/browser_nexo_e2e.py'
+      - 'tests/browser_horizonte_e2e.py'
       - '.github/workflows/browser.yml'
 permissions:
   contents: read
@@ -36,6 +38,7 @@ jobs:
         run: |
           python tests/browser_orbita_e2e.py
           python tests/browser_nexo_e2e.py
+          python tests/browser_horizonte_e2e.py
       - uses: actions/upload-artifact@v5
         if: ${{ !cancelled() }}
         with:

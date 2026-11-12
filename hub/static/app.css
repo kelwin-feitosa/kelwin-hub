@@ -168,3 +168,12 @@ a:focus-visible,.context-link:focus-visible,.text-action:focus-visible{outline:3
 .calendar-views{display:flex;flex-wrap:wrap;gap:8px}.calendar-views [aria-pressed='true']{background:var(--panel2);color:var(--accent);border-color:var(--accent)}
 
 .transcript-context{padding:16px;border:1px solid var(--border);border-radius:10px;margin:5px 0 20px;background:var(--panel2);display:grid;gap:12px}.transcript-context[hidden]{display:none}.transcript-context h3{font-size:15px}.transcript-content pre{white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;max-height:370px;overflow:auto;background:var(--panel);padding:12px;border:1px solid var(--border);border-radius:8px;font:13px/1.6 ui-monospace,monospace}
+
+/* HORIZONTE: bounded task list with low-friction filters and accessible paging. */
+.task-filters{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+.task-filters label{font-size:12px;font-weight:700;color:var(--muted)}
+.task-filters input,.task-filters select{min-height:38px;min-width:0;padding:7px 10px;border:1px solid var(--border);background:var(--panel);color:var(--text);border-radius:9px}
+.task-filters input{flex:1 1 180px;max-width:370px}
+.task-pagination{display:flex;justify-content:center;gap:16px;align-items:center;flex-wrap:wrap;color:var(--muted);font-size:12px}
+.task-pagination button:disabled{opacity:.48;cursor:default}
+@media(max-width:480px){.task-filters{align-items:stretch}.task-filters input{flex:1 1 100%;max-width:none}.task-filters label{align-self:center}.task-pagination{gap:8px}}

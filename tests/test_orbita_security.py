@@ -49,6 +49,6 @@ def test_local_assets_headers_authentication_and_csrf_survive_navigation(tmp_pat
         csrf = {'X-CSRF-Token': token}
         assert client.post('/api/projects', json=form,
                            headers={**csrf, 'Origin': 'http://attacker.example'}).status_code == 403
-        assert client.post('/api/projects', json=form, headers=csrf).status_code == 200
+        assert client.post('/api/projects', json=form, headers=csrf).status_code == 201
         assert client.post('/api/logout', headers=csrf).status_code == 200
         assert client.get('/api/export').status_code == 401

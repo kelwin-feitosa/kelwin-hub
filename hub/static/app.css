@@ -105,3 +105,20 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 a:focus-visible,.context-link:focus-visible,.text-action:focus-visible{outline:3px solid var(--focus);outline-offset:3px;border-radius:4px}
 :root[data-theme="dark"] .work-context,:root[data-theme="dark"] .nav-item.active{color:var(--accent)}
 :root[data-theme="dark"] .login-card{background:var(--panel)}
+
+/* Universal search — lightweight dialog, grouped by existing entity type. */
+.search-dialog{width:min(700px,calc(100vw - 26px));padding:24px}
+.search-heading{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}
+.search-heading h2{font-size:21px;letter-spacing:-.6px}
+.search-dialog label{display:block;color:var(--muted);font-size:12px;margin-bottom:8px}
+.search-dialog input[type="search"]{width:100%;font-size:17px;padding:13px 16px;border-radius:11px;border:1px solid var(--border);background:var(--bg);color:var(--text)}
+.search-results{margin-top:12px;max-height:min(55vh,450px);overflow-y:auto;display:grid;gap:4px}
+.search-results>.muted{padding:20px 6px;font-size:13px}
+.search-result{text-align:left;display:grid;width:100%;gap:2px;background:transparent;color:var(--text);border:1px solid transparent;border-radius:10px;padding:12px 14px}
+.search-result:hover,.search-result:focus-visible{background:var(--panel2);border-color:var(--border)}
+.search-result-kind{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--accent)}
+.search-result strong{font-size:14px}
+.search-result small{font-size:12px;color:var(--muted);overflow-wrap:anywhere}
+.search-footnote{font-size:11px;color:var(--muted);margin-top:14px}
+.shortcut-label{font-size:10px;opacity:.7;margin-left:4px}
+@media(max-width:700px){.shortcut-label{display:none}.search-dialog{padding:17px}.search-dialog input[type="search"]{font-size:16px}}

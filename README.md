@@ -210,3 +210,15 @@ A Mesa apresenta no máximo três sugestões factuais: revisão humana de itens 
 - Validação de `value_brl`: aceita formato decimal não negativo com até dez dígitos inteiros e duas casas, recusando expoentes, valores não finitos e entradas excessivas antes da conversão numérica.
 - Backup/restauração: além de `integrity_check`, exige `PRAGMA foreign_key_check` sem violações para não exportar nem publicar um banco com vínculos corrompidos.
 - Testes de regressão com dados sintéticos foram adicionados; considerar a implementação aprovada somente após CI verde no SHA correspondente.
+
+### HORIZONTE — diagnóstico de segurança e atualização
+
+Com o Hub **desligado**, execute na raiz do projeto, antes de atualizar:
+
+```bash
+python scripts/preflight.py
+```
+
+O comando **não aplica migrações nem grava no SQLite**. Ele confere estrutura e integridade, versão do esquema, permissões do `.env` e do banco, sem imprimir senhas ou registros. A saída pode indicar `ok`, `warning` (corrija as ressalvas) ou `error` (não prossiga antes de investigar). Caso use um caminho diferente do padrão, passe `--db /caminho/para/hub.db`.
+
+Antes da atualização, ainda é obrigatório fazer backup criptografado, mantê-lo fora da pasta principal e verificar a restauração em banco separado. O launcher nativo cria novos bancos com permissão 0600 e endurece bancos existentes no Linux, sem substituir dados. Para bancos existentes, confirme que não há outra instância em execução. Isso não protege contra usuários com acesso privilegiado nem substitui criptografia do disco.

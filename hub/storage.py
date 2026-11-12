@@ -2,6 +2,8 @@
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
+import os
+import stat
 import sqlite3
 import uuid
 
@@ -88,7 +90,21 @@ INSERT OR IGNORE INTO automation_configs(code,enabled,threshold_days) VALUES ('s
 class Store:
     def __init__(self, path: str):
         self.path = path
-        Path(path).parent.mkdir(parents=True, exist_ok=True)
+        db_path = Path(path)
+        # New private data directories and files must never start world-readable.
+        # Existing databases are chmod'd in place without replacing their contents.
+        db_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        if db_path.is_symlink():
+            raise RuntimeError('Banco SQLite não pode ser um link simbólico')
+        try:
+            fd = os.open(db_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        except FileExistsError:
+            if not stat.S_ISREG(db_path.stat().st_mode):
+                raise RuntimeError('Caminho do banco não é um arquivo regular')
+        else:
+            os.close(fd)
+        if os.name == 'posix':
+            db_path.chmod(0o600)
         with self.connection() as db:
             db.execute('PRAGMA journal_mode=WAL')
             current = db.execute('PRAGMA user_version').fetchone()[0]

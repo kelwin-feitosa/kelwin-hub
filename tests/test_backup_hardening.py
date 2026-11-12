@@ -78,3 +78,27 @@ def test_backup_exclusive_create_never_replaces_existing(tmp_path):
     with pytest.raises(FileExistsError):
         module.backup_db(source, backup, PASSWORD)
     assert backup.read_bytes() == b'unchanged'
+
+def test_backup_and_restore_reject_broken_foreign_keys(tmp_path):
+    source = tmp_path / 'orphaned.db'
+    source_db(source)
+    # Simulate corruption introduced while SQLite foreign_keys was disabled.
+    with sqlite3.connect(source) as db:
+        db.execute('CREATE TABLE dependents (id TEXT PRIMARY KEY, project_id TEXT REFERENCES projects(id))')
+        db.execute("INSERT INTO dependents VALUES ('orphan', 'missing-parent')")
+    backup = tmp_path / 'not-created.khb'
+    with pytest.raises(ValueError, match='chave estrangeira'):
+        module.backup_db(source, backup, PASSWORD)
+    assert not backup.exists()
+
+    # Independently exercise the restore path on an authenticated archive of
+    # a corrupt database. It must never publish even a partially valid target.
+    stream = io.BytesIO()
+    with zipfile.ZipFile(stream, 'w', compression=zipfile.ZIP_DEFLATED) as archive:
+        archive.write(source, arcname='hub.db')
+    salt = b'2' * 16
+    backup.write_bytes(module.MAGIC + salt + module._fernet(PASSWORD, salt).encrypt(stream.getvalue()))
+    destination = tmp_path / 'must-not-appear.db'
+    with pytest.raises(ValueError, match='chave estrangeira'):
+        module.restore_db(backup, destination, PASSWORD)
+    assert not destination.exists()

@@ -14,6 +14,7 @@ from zoneinfo import ZoneInfo
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from .security import csrf_token, hash_password, sign_session, validate_session, verify_password, SESSION_SECONDS
@@ -253,6 +254,13 @@ def create_app(database_path: str | None = None, *, password_hash: str | None = 
                     pass
 
     app = FastAPI(title='Kelwin Hub piloto', version='0.1.0', lifespan=lifespan, docs_url=None, redoc_url=None)
+    # Reject DNS-rebinding and unexpected Host headers before any routes.
+    # 'hub' is Docker Compose, and 'testserver' is FastAPI's TestClient.
+    app.add_middleware(
+        TrustedHostMiddleware,
+        allowed_hosts=['127.0.0.1', 'localhost', 'hub', 'testserver'],
+        www_redirect=False,
+    )
     app.state.store = store
     app.mount('/static', StaticFiles(directory=str(STATIC)), name='static')
 

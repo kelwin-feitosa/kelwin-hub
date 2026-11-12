@@ -10,9 +10,11 @@
   <link rel="stylesheet" href="/static/app.css">
   <link rel="stylesheet" href="/static/orbita-navigation.css">
   <link rel="stylesheet" href="/static/nexo-context.css">
+  <link rel="stylesheet" href="/static/nexo-suggestions.css">
   <script src="/static/app.js" defer></script>
   <script src="/static/orbita-navigation.js" defer></script>
   <script src="/static/nexo-context.js" defer></script>
+  <script src="/static/nexo-suggestions.js" defer></script>
   <script src="/static/meeting-review.js" defer></script>
   <script src="/static/availability-ui.js" defer></script>
   <link rel="stylesheet" href="/static/availability-ui.css">
@@ -34,7 +36,7 @@
     <div class="main-wrap">
       <header class="topbar">
         <div><div class="eyebrow">MEU ESPAÇO</div><h1 id="pageTitle">Hoje</h1></div>
-        <div class="top-actions"><button type="button" class="ghost" id="search-open" aria-keyshortcuts="Control+K Meta+K" title="Pesquisar registros, áreas e ações">⌕ Buscar <span class="shortcut-label">Ctrl K</span></button><button type="button" class="primary create-open" id="create-open" aria-label="Criar novo registro">+ Novo</button><button type="button" class="ghost" id="export" title="Exportar registros em JSON">Exportar</button><button type="button" class="ghost" id="theme" aria-label="Alternar tema">◐</button><span class="user-chip">● Local</span></div>
+        <div class="top-actions"><button type="button" class="ghost" id="search-open" aria-keyshortcuts="Control+K Meta+K" title="Pesquisar registros, áreas e ações">⌕ Buscar <span class="shortcut-label">Ctrl K</span></button><button type="button" class="primary create-open" id="create-open" aria-label="Criar novo registro"><span class="create-plus" aria-hidden="true">+</span><span class="create-label">Novo</span></button><button type="button" class="ghost" id="export" title="Exportar registros em JSON">Exportar</button><button type="button" class="ghost" id="theme" aria-label="Alternar tema">◐</button><span class="user-chip">● Local</span></div>
       </header>
       <main id="content" class="content" tabindex="-1"><p class="muted">Carregando...</p></main>
       <footer class="footer">Kelwin Hub · Central local · Nenhum envio automático a terceiros</footer>

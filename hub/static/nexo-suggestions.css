@@ -1,0 +1,9 @@
+/* NEXO: quiet, explainable observations; never synthetic alerts. */
+.nexo-suggestions{border-top:1px solid var(--border);padding-top:16px;display:grid;gap:8px}
+.nexo-suggestions header h3{font-size:14px}
+.nexo-suggestions header p{color:var(--muted);font-size:12px;margin-top:5px}
+.nexo-suggestion{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 2px;border-bottom:1px solid var(--border)}
+.nexo-suggestion strong{display:block;font-size:13px;overflow-wrap:anywhere}
+.nexo-suggestion p{font-size:12px;color:var(--muted);line-height:1.5;overflow-wrap:anywhere;margin-top:4px}
+.nexo-suggestion .mini{white-space:nowrap}
+@media(max-width:450px){.nexo-suggestion{align-items:flex-start;flex-wrap:wrap}}

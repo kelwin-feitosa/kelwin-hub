@@ -8,7 +8,9 @@
 #nav .nav-label{min-width:0}
 #nav .nav-item.active::before{content:none}
 #nav .nav-item.active{background:var(--panel2);color:var(--text);box-shadow:inset 3px 0 0 var(--accent)}
-.topbar .create-open{white-space:nowrap}
+.topbar .create-open{white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.topbar #create-open .create-plus{font-size:20px;line-height:1}
+.topbar #create-open .create-label{font-size:14px;line-height:1}
 .orbit-intro{max-width:720px;display:grid;justify-items:start;gap:11px;padding:14px 0 10px}
 .orbit-intro h2{font-family:Georgia,"Times New Roman",serif;font-size:clamp(29px,3.3vw,43px);font-weight:400;letter-spacing:-1.2px;line-height:1.15}
 .orbit-intro>p:not(.eyebrow){color:var(--muted);line-height:1.65;font-size:14px;max-width:620px}
@@ -47,8 +49,8 @@
  .topbar #export{display:none}
  .topbar #search-open{font-size:0;width:38px;height:39px;padding:0}
  .topbar #search-open::before{font-size:20px}
- .topbar #create-open{font-size:0;width:37px;height:39px;padding:0}
- .topbar #create-open::after{content:"+";font-size:22px}
+ .topbar #create-open{width:37px;height:39px;padding:0}
+ .topbar #create-open .create-label{display:none}
  .topbar #theme{width:35px;height:39px;padding:5px}
  .content{padding:13px 14px calc(95px + env(safe-area-inset-bottom));gap:18px}
  .footer{padding-bottom:calc(90px + env(safe-area-inset-bottom))}

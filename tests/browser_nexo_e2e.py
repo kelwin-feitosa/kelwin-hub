@@ -41,6 +41,8 @@ def run():
                 post('/api/notes',{'title':'Nota da oportunidade','body':'Contexto autorizado','opportunity_id':opportunity})
                 post('/api/tasks',{'title':'Ação comercial vinculada','opportunity_id':opportunity})
 
+                page.locator('#nav [data-tab=today]').click()
+                expect(page.locator('.nexo-suggestions')).to_contain_text('Projeto NEXO fictício')
                 page.locator('#nav [data-tab=projects]').click()
                 expect(page.locator('#pageTitle')).to_have_text('Projetos')
                 requests.clear()
@@ -84,7 +86,14 @@ def run():
                 page.set_viewport_size({'width':390,'height':844})
                 # Wait for responsive reflow to settle after the viewport changes.
                 # A persistent overflow still fails, rather than being masked by CSS clipping.
-                page.wait_for_function('document.documentElement.scrollWidth <= document.documentElement.clientWidth + 2', timeout=3000)
+                # Python-side polling avoids injecting JS string predicates via eval;
+                # production CSP intentionally disallows unsafe-eval.
+                from time import monotonic, sleep
+                deadline = monotonic() + 3
+                while monotonic() < deadline:
+                    if page.evaluate('document.documentElement.scrollWidth - document.documentElement.clientWidth') <= 2:
+                        break
+                    sleep(.08)
                 overflow=page.evaluate('document.documentElement.scrollWidth-document.documentElement.clientWidth')
                 offenders=page.evaluate("""() => [...document.querySelectorAll('body *')].map(e => ({name:e.tagName,className:String(e.className).slice(0,80),id:e.id,right:e.getBoundingClientRect().right,width:e.getBoundingClientRect().width})).filter(e=>e.right>innerWidth+2 && e.width>1).slice(0,15)""")
                 if overflow > 2:

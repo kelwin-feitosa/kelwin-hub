@@ -199,3 +199,8 @@ A navegação principal possui quatro destinos estáveis: **Mesa, Projetos, Agen
 ### NEXO 14.0 — Índices de contexto
 
 A migração **007** acrescenta índices para consultas de tarefas por projeto e oportunidade, sem excluir nem transformar registros. O esquema é atualizado transacionalmente pelo mecanismo existente na primeira abertura após atualização. O benchmark sintético reproduzível pode ser executado com `python scripts/benchmark_nexo_indexes.py`; resultados não representam o desempenho da máquina do usuário. Antes de atualizar um banco com registros importantes, faça backup. Detalhes em `docs/ADR-015-INDICES-CONTEXTO-NEXO.md`.
+
+
+### NEXO — observações locais explicáveis
+
+A Mesa apresenta no máximo três sugestões factuais: revisão humana de itens importados de reunião e projetos ativos sem tarefas abertas. Ações continuam explícitas, sem criar tarefas ou tomar decisões automaticamente. Ver ADR-016.

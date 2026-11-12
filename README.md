@@ -222,3 +222,7 @@ python scripts/preflight.py
 O comando **não aplica migrações nem grava no SQLite**. Ele confere estrutura e integridade, versão do esquema, permissões do `.env` e do banco, sem imprimir senhas ou registros. A saída pode indicar `ok`, `warning` (corrija as ressalvas) ou `error` (não prossiga antes de investigar). Caso use um caminho diferente do padrão, passe `--db /caminho/para/hub.db`.
 
 Antes da atualização, ainda é obrigatório fazer backup criptografado, mantê-lo fora da pasta principal e verificar a restauração em banco separado. O launcher nativo cria novos bancos com permissão 0600 e endurece bancos existentes no Linux, sem substituir dados. Para bancos existentes, confirme que não há outra instância em execução. Isso não protege contra usuários com acesso privilegiado nem substitui criptografia do disco.
+
+### HORIZONTE — lista de tarefas paginada
+
+A seção **Tarefas** usa `GET /api/tasks/page?limit=30&offset=0&status=all&q=`, com máximo de 100 itens por resposta, contagem real, ordenação estável e filtros de status/título. Busca textual trata caracteres `%` e `_` literalmente. A interface oferece **Anterior / Próxima**, estado vazio e controles para teclado e telas pequenas. O endpoint antigo `GET /api/tasks` permanece para compatibilidade com integrações internas existentes; não usá-lo para renderizar listas grandes. A filtragem de título utiliza SQLite `lower` básico, sem prometer equivalência de acentos Unicode.

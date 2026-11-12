@@ -135,7 +135,40 @@ async function opportunitiesView(){
  filter();
 }
 
-async function tasksView(){const data=await api('/api/tasks');$('content').innerHTML=`<div class="section-head"><p class="muted">Tarefas próprias do Hub, com histórico de conclusão.</p><button class="primary" data-do="add-task">+ Nova tarefa</button></div>${panel('Todas as tarefas',data.length?`<div class="list">${data.map(x=>`<div id="tasks-item-${safe(x.id)}" class="item"><div class="item-info"><strong>${safe(x.title)}</strong><small>${x.due_at?dateTime(x.due_at):'Sem prazo'} · prioridade ${x.priority}</small></div><div class="row-actions">${badge(x.status)}<button class="mini" data-do="edit-task" data-id="${safe(x.id)}">Editar</button>${x.status!=='done'?`<button class="mini" data-do="complete" data-id="${safe(x.id)}">Concluir</button>`:''}</div></div>`).join('')}</div>`:blank('Nenhuma tarefa cadastrada.'))}`}
+let taskPage=0,taskStatus='all',taskQuery='',taskRenderSequence=0;
+const TASK_PAGE_SIZE=30;
+async function tasksView(){
+ const renderId=++taskRenderSequence;
+ const query=new URLSearchParams({limit:String(TASK_PAGE_SIZE),offset:String(taskPage*TASK_PAGE_SIZE),status:taskStatus,q:taskQuery});
+ const data=await api('/api/tasks/page?'+query.toString());
+ // A response from a page we have already left may not replace another view.
+ if(tab!=='tasks'||renderId!==taskRenderSequence)return;
+ if(taskPage>0&&data.total>0&&!data.items.length){taskPage=0;await tasksView();return}
+ const options=[{value:'all',label:'Todas'},{value:'open',label:'Abertas'},
+                {value:'blocked',label:'Bloqueadas'},{value:'done',label:'Concluídas'}];
+ const filters=`<form id="tasks-filter-form" class="task-filters">
+  <label for="task-status">Estado</label>
+  <select id="task-status" name="status">${options.map(x=>`<option value="${x.value}" ${taskStatus===x.value?'selected':''}>${x.label}</option>`).join('')}</select>
+  <label for="task-query">Título</label>
+  <input id="task-query" name="q" type="search" value="${safe(taskQuery)}" maxlength="100" placeholder="Buscar tarefa" autocomplete="off">
+  <button class="mini" type="submit">Filtrar</button>
+  <button class="mini" type="button" data-do="task-clear">Limpar</button>
+ </form>`;
+ const content=data.items.map(x=>`<div id="tasks-item-${safe(x.id)}" class="item">
+   <div class="item-info"><strong>${safe(x.title)}</strong><small>${x.due_at?dateTime(x.due_at):'Sem prazo'} · prioridade ${x.priority}</small></div>
+   <div class="row-actions">${badge(x.status)}<button class="mini" data-do="edit-task" data-id="${safe(x.id)}">Editar</button>
+   ${x.status!=='done'?`<button class="mini" data-do="complete" data-id="${safe(x.id)}">Concluir</button>`:''}</div>
+  </div>`).join('');
+ const totalPages=Math.max(1,Math.ceil(data.total/TASK_PAGE_SIZE));
+ const pager=`<nav class="task-pagination" aria-label="Páginas de tarefas">
+  <button class="mini" type="button" data-do="task-prev" ${taskPage===0?'disabled':''}>Anterior</button>
+  <span>Página ${taskPage+1} de ${totalPages} · ${data.total} tarefa(s)</span>
+  <button class="mini" type="button" data-do="task-next" ${!data.has_more?'disabled':''}>Próxima</button>
+ </nav>`;
+ $('content').innerHTML=`<div class="section-head"><p class="muted">Tarefas próprias do Hub, com histórico de conclusão.</p>
+  <button class="primary" data-do="add-task">+ Nova tarefa</button></div>
+  ${filters}${panel('Tarefas',data.items.length?`<div class="list">${content}</div>`:blank('Nenhuma tarefa encontrada para os filtros selecionados.'))}${pager}`;
+}
 async function notesView(){
  const notes=await api('/api/notes');
  $('content').innerHTML=`<div class="section-head"><p class="muted">Informações que merecem contexto, mas ainda não são tarefas.</p><button type="button" class="primary" data-do="add-note">+ Nova nota</button></div>${panel('Notas do Hub',notes.length?`<div class="list">${notes.map(n=>`<article id="notes-item-${safe(n.id)}" class="item"><div class="item-info"><strong>${safe(n.title)}</strong><small>${safe(n.body.slice(0,180))}</small><small>Atualizada ${dateTime(n.updated_at)}</small></div><button type="button" class="mini" data-do="edit-note" data-id="${safe(n.id)}">Editar</button></article>`).join('')}</div>`:blank('Ainda não há notas. Registre uma ideia para começar.'))}`;
@@ -273,7 +306,7 @@ async function editEvent(id){const item=(await api('/api/events')).find(x=>x.id=
  x=>api(`/api/events/${id}`,'PATCH',x))}
 
 async function handleAction(button){const a=button.dataset.do,id=button.dataset.id;const parentRegion=button.closest('.project-context');const activeProject=parentRegion?.id.replace('project-context-','');const activeOpportunity=button.closest('.nexo-opportunity')?.id.replace('opportunity-context-','');
- try{switch(a){case'add-contact':await addContact();return;case'add-note':await addNote();return;case'add-project-note':await addNote(id);return;case'add-opportunity-note':await addNote(null,id);return;case'edit-note':await editNote(id);return;case'add-project':await addProject();return;case'add-opportunity':await addOpportunity();return;case'add-task':await addTask(null);return;case'add-linked-task':await addTask(id);return;case'add-project-task':await addTask(null,id);return;case'project-context':await showProjectContext(id);return;case'opportunity-context':await window.KelwinNexo.showOpportunityContext(id);return;case'review-transcript':await window.KelwinReview.open(id);return;case'add-project-event':await addEvent(id);return;case'add-event':await addEvent();return;case'availability-open':await window.KelwinAvailability.open();return;case'event-transcripts':await showEventTranscripts(id);return;case'import-transcript':await importTranscript(id);return;case'view-transcript':await readTranscript(id,button.dataset.event);return;case'review-transcript':await window.KelwinReview.open(id);return;case'event-window':eventWindow=button.dataset.value;await eventsView();document.querySelector(`[data-do="event-window"][data-value="${eventWindow}"]`)?.focus();return;case'edit-project':await editProject(id);return;case'edit-contact':await editContact(id);return;case'edit-opportunity':await editOpportunity(id);return;case'edit-task':await editTask(id);return;case'edit-event':await editEvent(id);return;
+ try{switch(a){case'add-contact':await addContact();return;case'add-note':await addNote();return;case'add-project-note':await addNote(id);return;case'add-opportunity-note':await addNote(null,id);return;case'edit-note':await editNote(id);return;case'add-project':await addProject();return;case'add-opportunity':await addOpportunity();return;case'add-task':await addTask(null);return;case'add-linked-task':await addTask(id);return;case'add-project-task':await addTask(null,id);return;case'project-context':await showProjectContext(id);return;case'opportunity-context':await window.KelwinNexo.showOpportunityContext(id);return;case'review-transcript':await window.KelwinReview.open(id);return;case'add-project-event':await addEvent(id);return;case'add-event':await addEvent();return;case'availability-open':await window.KelwinAvailability.open();return;case'event-transcripts':await showEventTranscripts(id);return;case'import-transcript':await importTranscript(id);return;case'view-transcript':await readTranscript(id,button.dataset.event);return;case'review-transcript':await window.KelwinReview.open(id);return;case'event-window':eventWindow=button.dataset.value;await eventsView();document.querySelector(`[data-do="event-window"][data-value="${eventWindow}"]`)?.focus();return;case'edit-project':await editProject(id);return;case'edit-contact':await editContact(id);return;case'edit-opportunity':await editOpportunity(id);return;case'task-prev':taskPage=Math.max(0,taskPage-1);await tasksView();return;case'task-next':taskPage++;await tasksView();return;case'task-clear':taskPage=0;taskStatus='all';taskQuery='';await tasksView();return;case'edit-task':await editTask(id);return;case'edit-event':await editEvent(id);return;
  case'open-task':await showTab('tasks',id);return;case'open-project':await showTab('projects',id);return;case'open-opportunity':await showTab('opportunities',id);return;case'open-events':await showTab('events');return;
  case'complete':await api(`/api/tasks/${id}`,'PATCH',{status:'done'});break;
  case'contacted':await api(`/api/opportunities/${id}/contact`,'POST',{});break;
@@ -297,7 +330,13 @@ window.addEventListener('DOMContentLoaded',async()=>{
  });
  $('nav').addEventListener('click',(e)=>{const b=e.target.closest('[data-tab]');if(b)showTab(b.dataset.tab)});
  $('content').addEventListener('click',(e)=>{const b=e.target.closest('button[data-tab],button[data-do]');if(!b)return;if(b.dataset.tab)showTab(b.dataset.tab);else handleAction(b)});
- $('content').addEventListener('submit',(e)=>{if(e.target.id==='quick-task'){e.preventDefault();quickCapture(e.target)}});
+ $('content').addEventListener('submit',(e)=>{
+  if(e.target.id==='quick-task'){e.preventDefault();quickCapture(e.target);return}
+  if(e.target.id==='tasks-filter-form'){
+   e.preventDefault();taskPage=0;taskStatus=$('task-status').value;taskQuery=$('task-query').value.trim();
+   tasksView().catch(error=>notify('Erro ao filtrar tarefas: '+error.message));
+  }
+ });
  document.addEventListener('keydown',(e)=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'&&!$('shell').hidden){e.preventDefault();openSearch();return}const tag=document.activeElement?.tagName;const busy=['INPUT','TEXTAREA','SELECT'].includes(tag)||$('dialog').open||$('search-dialog').open;if(e.key.toLowerCase()==='q'&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!busy&&!$('shell').hidden){e.preventDefault();showTab('today').then(()=>$('quick-title')?.focus())}});
  $('logout').addEventListener('click',async()=>{try{await api('/api/logout','POST',{})}finally{showAuth()}});
  $('dialog').addEventListener('cancel',event=>{

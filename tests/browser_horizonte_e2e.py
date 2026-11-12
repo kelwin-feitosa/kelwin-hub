@@ -56,6 +56,28 @@ def run():
                 projects = page.request.get(host + '/api/projects').json()
                 assert sum(1 for p in projects
                            if p['name'] == 'Projeto único após duplo clique') == 1, projects
+                # Bounded task UI: real API records, next page and literal search.
+                csrf = page.request.get(host + '/api/session').json()['csrf']
+                for index in range(35):
+                    response = page.request.post(
+                        host + '/api/tasks', headers={'X-CSRF-Token': csrf},
+                        data={'title': f'Tarefa fictícia {index:02d}'})
+                    assert response.status == 201, response.text()
+                page.locator('#nav [data-tab=explore]').click()
+                page.locator('.orbit-explore-entry[data-tab=tasks]').click()
+                expect(page.locator('[id^="tasks-item-"]')).to_have_count(30)
+                expect(page.locator('.task-pagination')).to_contain_text('Página 1 de 2')
+                page.locator('[data-do=task-next]').click()
+                expect(page.locator('[id^="tasks-item-"]')).to_have_count(5)
+                expect(page.locator('.task-pagination')).to_contain_text('Página 2 de 2')
+                page.locator('#task-query').fill('fictícia 34')
+                page.locator('#tasks-filter-form button[type=submit]').click()
+                expect(page.locator('[id^="tasks-item-"]')).to_have_count(1)
+                assert page.evaluate(
+                    'document.documentElement.scrollWidth - document.documentElement.clientWidth'
+                ) <= 2, 'Task filters overflow on mobile viewport'
+                page.locator('[data-do=task-clear]').click()
+                expect(page.locator('[id^="tasks-item-"]')).to_have_count(30)
                 assert not errors, errors
                 browser.close()
         finally:

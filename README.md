@@ -1,6 +1,6 @@
 # Kelwin Hub — central pessoal local-first
 
-> **Estado em 11/11/2026:** primeira fatia vertical implementada e testada por HTTP (sem Docker). A versão 10.0 acrescenta **Mesa de trabalho contextual** e captura rápida sem migração de dados. **Não é o Kelwin Hub completo nem uma substituição aprovada da direção Java/Spring registrada no documento canônico.** Integrações reais com n8n, EspoCRM, Gmail, Calendar e GitHub ainda não foram homologadas.
+> **Estado verificado em 12/11/2026:** a `main` chegou à **NEXO 14.0** (PRs #22–#25), com Mesa, navegação ÓRBITA, contextos integrados, sugestões locais explicáveis, agenda e revisão humana de reuniões. O código usa **Python/FastAPI + SQLite + HTML/CSS/JS nativos**, por decisão consolidada. O núcleo continua **local-first**, sem dependência de serviços externos. A versão 1.0 **ainda não está homologada**; avaliação humana, instalação em hardware real e auditoria independente permanecem pendentes. A fonte canônica de decisões é `Kelwin_Hub_Especificacao_Requisitos.md` da Biblioteca do ChatGPT.
 
 O Hub é uma central pessoal privada para projetos, tarefas, contatos, oportunidades, agenda e alertas automáticos. Prioriza utilidade antes de infraestrutura complexa. Executa no seu Pop!_OS; os dados são armazenados em SQLite local. n8n é **opcional**, usado apenas quando o fluxo justificar.
 
@@ -204,3 +204,9 @@ A migração **007** acrescenta índices para consultas de tarefas por projeto e
 ### NEXO — observações locais explicáveis
 
 A Mesa apresenta no máximo três sugestões factuais: revisão humana de itens importados de reunião e projetos ativos sem tarefas abertas. Ações continuam explícitas, sem criar tarefas ou tomar decisões automaticamente. Ver ADR-016.
+
+## Operação HORIZONTE 15.0 — verificações de integridade (em desenvolvimento)
+
+- Validação de `value_brl`: aceita formato decimal não negativo com até dez dígitos inteiros e duas casas, recusando expoentes, valores não finitos e entradas excessivas antes da conversão numérica.
+- Backup/restauração: além de `integrity_check`, exige `PRAGMA foreign_key_check` sem violações para não exportar nem publicar um banco com vínculos corrompidos.
+- Testes de regressão com dados sintéticos foram adicionados; considerar a implementação aprovada somente após CI verde no SHA correspondente.

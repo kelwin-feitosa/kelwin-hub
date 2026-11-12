@@ -256,3 +256,33 @@ def test_private_export_and_content(ctx):
     doc=r.json()
     assert doc['version']==1 and len(doc['contacts'])==1 and 'automation_configs' in doc
     assert 'attachment' in r.headers['Content-Disposition']
+
+@pytest.mark.parametrize('invalid', [
+    '-1', '1.234', '1e100000000', 'NaN', 'Infinity',
+    '99999999999', ' ' + '9' * 1000, '1,50',
+])
+def test_untrusted_money_is_bounded_and_rejected(ctx, invalid):
+    client, heads, store = ctx
+    cid = make_contact(client, heads)
+    request = {'contact_id': cid, 'title': 'Teste de validação',
+               'next_action': 'Revisar', 'value_brl': invalid}
+    result = client.post('/api/opportunities', headers=heads, json=request)
+    assert result.status_code == 422, result.text
+    with store.connection() as db:
+        assert db.execute('SELECT COUNT(*) FROM opportunities').fetchone()[0] == 0
+
+
+@pytest.mark.parametrize(('value', 'expected_cents'), [
+    ('0', 0), ('12.3', 1230), ('1250.50', 125050), ('9999999999.99', 999999999999),
+])
+def test_crm_money_preserves_valid_decimal_amounts(ctx, value, expected_cents):
+    client, heads, store = ctx
+    cid = make_contact(client, heads)
+    request = {'contact_id': cid, 'title': 'Valor legítimo',
+               'next_action': 'Acompanhar', 'value_brl': value}
+    result = client.post('/api/opportunities', headers=heads, json=request)
+    assert result.status_code == 201, result.text
+    with store.connection() as db:
+        actual = db.execute('SELECT value_cents FROM opportunities WHERE id=?',
+                            (result.json()['id'],)).fetchone()[0]
+    assert actual == expected_cents

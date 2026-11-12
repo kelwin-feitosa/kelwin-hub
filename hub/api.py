@@ -1,11 +1,12 @@
 """Local-first authenticated API; no external messages or third-party credentials."""
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone, timedelta
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 import asyncio
 import hmac
 import logging
 import os
+import re
 from pathlib import Path
 import sqlite3
 import time
@@ -31,6 +32,8 @@ from .transcripts import validate_text, segments, MAX_TRANSCRIPT_BYTES
 LOG = logging.getLogger(__name__)
 STATIC = Path(__file__).parent / 'static'
 LOCAL_TZ = ZoneInfo('America/Sao_Paulo')
+# Fixed-length decimal amounts only: protect Decimal/int conversion and SQLite storage.
+_MONEY_FORMAT = re.compile(r'[0-9]{1,10}(?:\.[0-9]{1,2})?\Z')
 
 
 def timestamp(value: str | None) -> str | None:
@@ -48,13 +51,11 @@ def timestamp(value: str | None) -> str | None:
 def money(value: str | None) -> int | None:
     if value in (None, ''):
         return None
-    try:
-        decimal = Decimal(value)
-        if not decimal.is_finite() or decimal < 0 or decimal.as_tuple().exponent < -2:
-            raise ValueError
-        return int(decimal * 100)
-    except (InvalidOperation, ValueError, TypeError):
-        raise HTTPException(422, 'Valor em reais inválido (máximo duas casas)')
+    # Do not pass unbounded, exponent or non-finite inputs to Decimal/int.
+    # Ten integer digits are ample for the personal CRM and fit SQLite INTEGER cents.
+    if not isinstance(value, str) or not _MONEY_FORMAT.fullmatch(value):
+        raise HTTPException(422, 'Valor em reais inválido (até 10 dígitos e duas casas decimais)')
+    return int(Decimal(value) * 100)
 
 
 def normalized_email(raw: str | None):

@@ -768,7 +768,7 @@ def create_app(database_path: str | None = None, *, password_hash: str | None = 
 
     @app.get('/api/export')
     def export_owned_data(_=Depends(require_login)):
-        allowed=('projects','contacts','opportunities','tasks','events','notes','meeting_transcripts','automation_configs','automation_runs','alerts','audit')
+        allowed=('projects','contacts','opportunities','tasks','events','notes','meeting_transcripts','meeting_analyses','meeting_suggestions','automation_configs','automation_runs','alerts','audit')
         with store.connection() as db:
             result={'version':1,'generated_at':now_utc(),
                     'warning':'Contém informações privadas. Armazene em local protegido.'}
@@ -781,5 +781,7 @@ def create_app(database_path: str | None = None, *, password_hash: str | None = 
         with store.connection() as db:
             return rows(db.execute('SELECT * FROM audit ORDER BY at DESC LIMIT 50'))
 
+    from .meeting_review import register_meeting_review
+    register_meeting_review(app,store,require_login,timestamp)
     return app
 

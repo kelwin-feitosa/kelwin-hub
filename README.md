@@ -176,3 +176,8 @@ A seção **Oportunidades** apresenta agora retornos vencidos, da próxima seman
 - Importar transcrições já existentes de reuniões TXT, SRT ou VTT (até 200 KB UTF-8) na Agenda; consultar origem e conteúdo, incluindo marcas de tempo explícitas para legendas. Tudo permanece no SQLite local.
 - Nenhuma gravação ou participação de bot é feita; nenhuma IA é chamada. Texto da transcrição é não confiável e não gera automaticamente tarefas, compromissos ou mensagens. A exportação JSON agora pode conter texto de reuniões e deve ficar protegida. Consulte `docs/ADR-010-TRANSCRICOES-LOCAIS.md`.
 - A migração versão 4 é aditiva e não exige reconfiguração de senha.
+
+
+## Missão 13.0 — Revisão de reuniões (local-first)
+
+Em Agenda → Transcrições → Ler → **Preparar e revisar análise**, o Hub prepara um pacote que pode ser copiado voluntariamente para o ChatGPT. Você decide se compartilhará o conteúdo privado. O Hub não envia nada automaticamente. Cole o JSON de retorno, confira as evidências literais e aprove cada ação individualmente para gerar tarefa (não há tarefa criada por análise sem aprovação). Sugestões sem evidência exata são rejeitadas; imports repetidos e aprovação repetida não duplicam tarefas. Busca específica: `/api/meeting-review/search?q=...`. Há exclusão explícita de transcrições por API autenticada; isso remove também análises/itens vinculados, porém não elimina backups antigos ou tarefas aprovadas. A documentação de segurança e limites está em `docs/ADR-011-REVISAO-REUNIOES.md`. Não exige IA paga, bot nem servidor MCP remoto.

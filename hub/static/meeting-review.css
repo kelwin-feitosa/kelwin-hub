@@ -1,0 +1,18 @@
+/* Meeting review: follows the Hub's light/dark tokens and avoids new dependencies. */
+#meeting-review-dialog{width:min(800px,calc(100vw - 20px));max-height:90dvh;overflow:auto}
+.review-head{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:12px}
+.review-head h2{margin:0}
+.review-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:14px 0}
+.review-label{display:block;font-size:13px;font-weight:650;margin:16px 0 6px}
+#review-import{display:block;width:100%;background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:9px;padding:11px;font:12px/1.5 ui-monospace,monospace;resize:vertical}
+.review-analysis{border-top:1px solid var(--border);padding-top:14px;margin-top:18px}
+.review-analysis h3{font-size:16px;margin:0 0 6px}
+.review-item{border:1px solid var(--border);background:var(--panel2);border-radius:12px;padding:14px;margin:12px 0;overflow-wrap:anywhere}
+.review-item p{margin:6px 0;font-size:13px}
+.review-item blockquote{margin:12px 0;padding:9px 12px;border-left:3px solid var(--accent);background:var(--panel);font-size:12px;white-space:pre-wrap;overflow-wrap:anywhere}
+.review-item .review-meta{color:var(--muted);font-size:11px;font-weight:650}
+.review-form{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:10px;margin-top:12px}
+.review-form label{font-size:12px;color:var(--muted);display:grid;gap:5px}
+.review-form input,.review-form select{width:100%;min-width:0;border:1px solid var(--border);border-radius:8px;padding:8px;background:var(--panel);color:var(--text)}
+.review-footnote{color:var(--muted);font-size:12px;margin-top:16px}
+@media(max-width:650px){.review-form{grid-template-columns:1fr}#meeting-review-dialog{padding:16px}}

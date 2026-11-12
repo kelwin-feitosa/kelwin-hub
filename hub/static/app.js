@@ -262,7 +262,7 @@ window.addEventListener('DOMContentLoaded',async()=>{
  $('search-results').addEventListener('click',async e=>{
   const b=e.target.closest('button[data-tab]');if(!b)return;
   const tabName=b.dataset.tab,id=b.dataset.id;
-  if(!['tasks','projects','contacts','opportunities','events','notes'].includes(tabName))return;
+  if(!Object.prototype.hasOwnProperty.call(tabs,tabName))return;
   closeSearch();await showTab(tabName,id);
  });
  $('nav').addEventListener('click',(e)=>{const b=e.target.closest('[data-tab]');if(b)showTab(b.dataset.tab)});

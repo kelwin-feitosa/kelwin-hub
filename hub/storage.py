@@ -11,6 +11,7 @@ MIGRATION_NAMES = {
     2: '002_notes_context.sql',
     3: '003_event_context.sql',
     4: '004_transcripts.sql',
+    5: '005_meeting_review.sql',
 }
 LATEST_SCHEMA_VERSION = max(MIGRATION_NAMES)
 

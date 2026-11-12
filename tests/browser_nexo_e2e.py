@@ -82,7 +82,9 @@ def run():
                 expect(page.locator(f'#opportunity-context-{opportunity}')).to_be_visible()
 
                 page.set_viewport_size({'width':390,'height':844})
-                # Chromium may reserve scrollbar pixels in innerWidth; compare DOM viewport widths.
+                # Wait for responsive reflow to settle after the viewport changes.
+                # A persistent overflow still fails, rather than being masked by CSS clipping.
+                page.wait_for_function('document.documentElement.scrollWidth <= document.documentElement.clientWidth + 2', timeout=3000)
                 overflow=page.evaluate('document.documentElement.scrollWidth-document.documentElement.clientWidth')
                 offenders=page.evaluate("""() => [...document.querySelectorAll('body *')].map(e => ({name:e.tagName,className:String(e.className).slice(0,80),id:e.id,right:e.getBoundingClientRect().right,width:e.getBoundingClientRect().width})).filter(e=>e.right>innerWidth+2 && e.width>1).slice(0,15)""")
                 if overflow > 2:

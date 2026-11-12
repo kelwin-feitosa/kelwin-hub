@@ -19,6 +19,13 @@ def load_opportunity_context(store, ident: str) -> dict | None:
                       due_at,priority DESC,created_at DESC
              LIMIT 60
         """, (ident,)))
+        totals=db.execute("""
+            SELECT COUNT(*) AS all_tasks,
+                   SUM(CASE WHEN status='open' THEN 1 ELSE 0 END) AS open_tasks,
+                   SUM(CASE WHEN status='blocked' THEN 1 ELSE 0 END) AS blocked_tasks,
+                   SUM(CASE WHEN status='done' THEN 1 ELSE 0 END) AS done_tasks
+              FROM tasks WHERE opportunity_id=?
+        """, (ident,)).fetchone()
         notes=rows(db.execute("""
             SELECT id,title,substr(body,1,220) AS body,updated_at
               FROM notes WHERE opportunity_id=?
@@ -38,8 +45,9 @@ def load_opportunity_context(store, ident: str) -> dict | None:
             'opportunity':dict(item), 'tasks':tasks,
             'notes':notes, 'recent_activity':activity,
             'next_task':open_tasks[0] if open_tasks else None,
-            'counts':{'open':len(open_tasks),
-                      'blocked':sum(t['status']=='blocked' for t in tasks),
-                      'done':sum(t['status']=='done' for t in tasks)},
+            'counts':{'open':totals['open_tasks'] or 0,
+                      'blocked':totals['blocked_tasks'] or 0,
+                      'done':totals['done_tasks'] or 0},
+            'truncated_tasks':totals['all_tasks']>len(tasks),
             'limits':{'tasks':60,'notes':8,'activity':12}
         }

@@ -3,7 +3,7 @@ import sqlite3
 from fastapi.testclient import TestClient
 from hub.api import create_app
 from hub.security import hash_password
-from hub.storage import LATEST_SCHEMA_VERSION, Store
+from hub.storage import LATEST_SCHEMA_VERSION, Store, SCHEMA, MIGRATIONS
 
 
 def test_notes_context_search_and_activity(ctx):
@@ -52,16 +52,12 @@ def test_notes_validation_and_security(ctx):
 
 def test_migration_from_original_11_preserves_existing_records(tmp_path):
     path=str(tmp_path/'old.db')
-    Store(path)
+    # Synthesize a genuine v1 schema, instead of lowering PRAGMA version on a v3 DB.
     with sqlite3.connect(path) as db:
+        db.executescript(SCHEMA)
+        original=(MIGRATIONS/'001_sessions_scheduler_integrity.sql').read_text()
+        db.executescript(f'BEGIN IMMEDIATE;\n{original}\nPRAGMA user_version=1;\nCOMMIT;')
         db.execute('INSERT INTO projects VALUES (?,?,?,?,?)', ('saved','Mantido','pessoal','active','2026-01-01'))
-        db.execute('DROP TABLE notes')
-        db.execute('DROP INDEX IF EXISTS notes_updated_idx')
-        db.execute('DROP INDEX IF EXISTS notes_project_idx')
-        db.execute('DROP INDEX IF EXISTS notes_contact_idx')
-        db.execute('DROP INDEX IF EXISTS notes_opportunity_idx')
-        db.execute('DROP INDEX IF EXISTS audit_lookup_idx')
-        db.execute('PRAGMA user_version=1')
     Store(path)
     with sqlite3.connect(path) as db:
         assert db.execute('PRAGMA user_version').fetchone()[0]==LATEST_SCHEMA_VERSION

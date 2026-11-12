@@ -164,3 +164,9 @@ A seção **Oportunidades** apresenta agora retornos vencidos, da próxima seman
 - **Histórico factual:** `/api/activity?kind=project|opportunity|contact&ident=<uuid>` retorna ações de auditoria realmente registradas e ações de notas/tarefas associadas, com paginação (não cria eventos retroativos imaginários).
 - **Migração aditiva versão 2:** preserva todos os registros existentes; teste de atualização a partir do esquema versão 1. O export JSON passa a incluir notas.
 - Leia `docs/ADR-008-NOTAS-HISTORICO.md` para limites e escolhas.
+
+## Missão 12.0 — agenda local contextual
+
+- A agenda oferece Hoje / Próximos 7 dias / Todos e edição de título, período e confirmação.
+- Horários **confirmados** são protegidos contra sobreposição em transação; tentativas conflitantes retornam HTTP 409. Horários adjacentes são permitidos, propostas não bloqueiam e eventos cancelados não bloqueiam. `GET /api/events/conflicts` permite consulta autenticada.
+- `project_id` e `contact_id` opcionais permitem recuperar compromissos no projeto, sem integração externa. A migração versão 3 é aditiva. Veja `docs/ADR-009-AGENDA-LOCAL.md`.

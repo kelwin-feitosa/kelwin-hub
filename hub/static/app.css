@@ -164,3 +164,5 @@ a:focus-visible,.context-link:focus-visible,.text-action:focus-visible{outline:3
 .context-extra{padding:15px 8px;display:grid;gap:8px;border-top:1px solid var(--border)}
 .context-extra h4{margin:8px 0 0;font-size:14px} .context-extra p{font-size:12px;overflow-wrap:anywhere}
 .field textarea{display:block;width:100%;padding:11px 12px;border:1px solid var(--border);border-radius:9px;background:var(--panel);color:var(--text);resize:vertical}
+
+.calendar-views{display:flex;flex-wrap:wrap;gap:8px}.calendar-views [aria-pressed='true']{background:var(--panel2);color:var(--accent);border-color:var(--accent)}

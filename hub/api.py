@@ -160,9 +160,16 @@ class EventIn(Strict):
     start_at: str
     end_at: str
     status: str = 'confirmed'
+    project_id: str | None = None
+    contact_id: str | None = None
 
 class EventUpdate(Strict):
-    status: str
+    status: str | None = None
+    title: str | None = Field(default=None,min_length=1,max_length=180)
+    start_at: str | None = None
+    end_at: str | None = None
+    project_id: str | None = None
+    contact_id: str | None = None
 
 class NoteIn(Strict):
     title: str = Field(min_length=1,max_length=160)
@@ -587,6 +594,9 @@ def create_app(database_path: str | None = None, *, password_hash: str | None = 
             clauses=['(a.kind=? AND a.entity_id=?)']; params=[kind,ident]
             clauses.append(f"(a.kind='note' AND a.entity_id IN (SELECT n.id FROM notes n WHERE n.{link}=?))")
             params.append(ident)
+            if kind in ('project','contact'):
+                clauses.append(f"(a.kind='event' AND a.entity_id IN (SELECT e.id FROM events e WHERE e.{link}=?))")
+                params.append(ident)
             if kind in ('project','opportunity'):
                 clauses.append(f"(a.kind='task' AND a.entity_id IN (SELECT t.id FROM tasks t WHERE t.{link}=?))")
                 params.append(ident)
@@ -594,33 +604,72 @@ def create_app(database_path: str | None = None, *, password_hash: str | None = 
                               ' ORDER BY a.at DESC,a.id DESC LIMIT ? OFFSET ?',(*params,limit,offset))
             return rows(result)
 
+    def check_event_links(db, project_id: str | None, contact_id: str | None):
+        for table,related in (('projects',project_id),('contacts',contact_id)):
+            if related and not db.execute(f'SELECT 1 FROM {table} WHERE id=?',(related,)).fetchone():
+                raise HTTPException(404,'Vínculo do evento não encontrado')
+
+    def check_event_conflict(db, start: str, end: str, ident: str | None = None):
+        # Checked inside BEGIN IMMEDIATE: concurrent confirmed bookings serialize.
+        blocked=db.execute("SELECT id FROM events WHERE status='confirmed' AND start_at<? AND end_at>? AND id!=? LIMIT 1",
+                           (end,start,ident or '')).fetchone()
+        if blocked:
+            raise HTTPException(409,'Horário ocupado por outro evento confirmado')
+
     @app.get('/api/events')
     def events(_=Depends(require_login)):
         with store.connection() as db:
             return rows(db.execute('SELECT * FROM events ORDER BY start_at'))
 
+    @app.get('/api/events/conflicts')
+    def event_conflicts(start_at: str,end_at: str,ignore_id: str | None=None,_=Depends(require_login)):
+        start=timestamp(start_at);end=timestamp(end_at)
+        if start>=end:raise HTTPException(422,'Intervalo inválido')
+        with store.connection() as db:
+            overlaps=rows(db.execute("SELECT id,title,start_at,end_at FROM events WHERE status='confirmed' AND start_at<? AND end_at>? AND id!=? ORDER BY start_at LIMIT 30",
+                                    (end,start,ignore_id or '')))
+        return {'available':not overlaps,'conflicts':overlaps}
+
     @app.post('/api/events',status_code=201)
     def add_event(data: EventIn,_=Depends(require_login)):
         if data.status not in ('proposed','confirmed'):
             raise HTTPException(422,'Status inválido')
-        start=timestamp(data.start_at); end=timestamp(data.end_at)
-        if start >= end:
-            raise HTTPException(422,'O evento deve terminar depois do início')
+        start=timestamp(data.start_at);end=timestamp(data.end_at)
+        if start>=end:raise HTTPException(422,'O evento deve terminar depois do início')
         ident=new_id()
         with store.transaction() as db:
-            db.execute('INSERT INTO events VALUES (?,?,?,?,?,?,?)',
-                (ident,data.title.strip(),start,end,data.status,'local',now_utc()))
+            check_event_links(db,data.project_id,data.contact_id)
+            if data.status=='confirmed':check_event_conflict(db,start,end)
+            db.execute('INSERT INTO events(id,title,start_at,end_at,status,source,created_at,project_id,contact_id) VALUES (?,?,?,?,?,?,?,?,?)',
+                (ident,data.title.strip(),start,end,data.status,'local',now_utc(),data.project_id,data.contact_id))
             record(db,'event',ident,'create')
         return {'id':ident}
 
     @app.patch('/api/events/{ident}')
     def edit_event(ident:str,data:EventUpdate,_=Depends(require_login)):
-        if data.status not in ('proposed','confirmed','cancelled'):
+        changes=data.model_dump(exclude_unset=True)
+        if not changes:raise HTTPException(422,'Nenhuma alteração informada')
+        if 'status' in changes and changes['status'] not in ('proposed','confirmed','cancelled'):
             raise HTTPException(422,'Status inválido')
+        if 'title' in changes and (changes['title'] is None or not changes['title'].strip()):
+            raise HTTPException(422,'Título inválido')
+        if 'title' in changes:changes['title']=changes['title'].strip()
+        if any(key in changes and (changes[key] is None or not str(changes[key]).strip()) for key in ('start_at','end_at')):
+            raise HTTPException(422,'Data obrigatória inválida')
         with store.transaction() as db:
-            result=db.execute('UPDATE events SET status=? WHERE id=?',(data.status,ident))
-            if not result.rowcount:raise HTTPException(404,'Evento não encontrado')
-            record(db,'event',ident,'status_'+data.status)
+            old=db.execute('SELECT * FROM events WHERE id=?',(ident,)).fetchone()
+            if old is None:raise HTTPException(404,'Evento não encontrado')
+            start=timestamp(changes['start_at']) if 'start_at' in changes else old['start_at']
+            end=timestamp(changes['end_at']) if 'end_at' in changes else old['end_at']
+            if start>=end:raise HTTPException(422,'O evento deve terminar depois do início')
+            status=changes.get('status',old['status'])
+            project_id=changes.get('project_id',old['project_id'])
+            contact_id=changes.get('contact_id',old['contact_id'])
+            check_event_links(db,project_id,contact_id)
+            if status=='confirmed':check_event_conflict(db,start,end,ident)
+            changes.update(start_at=start,end_at=end)
+            db.execute('UPDATE events SET '+','.join(f'{key}=?' for key in changes)+' WHERE id=?',(*changes.values(),ident))
+            record(db,'event',ident,'update')
         return {'ok':True}
 
     @app.get('/api/automations')

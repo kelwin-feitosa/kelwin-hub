@@ -12,7 +12,7 @@ import sqlite3
 import time
 from zoneinfo import ZoneInfo
 
-from fastapi import Depends, FastAPI, HTTPException, Request, Response
+from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
@@ -532,6 +532,36 @@ def create_app(database_path: str | None = None, *, password_hash: str | None = 
     def tasks(_=Depends(require_login)):
         with store.connection() as db:
             return rows(db.execute('SELECT * FROM tasks ORDER BY status, due_at, created_at DESC'))
+
+    @app.get('/api/tasks/page')
+    def tasks_page(limit: int = Query(30, ge=1, le=100),
+                   offset: int = Query(0, ge=0, le=1000000),
+                   status: str = 'all',
+                   q: str = Query('', max_length=100),
+                   _=Depends(require_login)):
+        """Bounded, stable paging for the daily tasks view; legacy list unchanged."""
+        if status not in ('all', 'open', 'blocked', 'done'):
+            raise HTTPException(422, 'Filtro de estado inválido')
+        filters = []
+        params = []
+        if status != 'all':
+            filters.append('status=?')
+            params.append(status)
+        if q.strip():
+            # instr treats '%' and '_' literally; never interpolate user text.
+            filters.append('instr(lower(title),lower(?))>0')
+            params.append(q.strip())
+        where = (' WHERE ' + ' AND '.join(filters)) if filters else ''
+        order = """ ORDER BY CASE status
+                       WHEN 'open' THEN 0 WHEN 'blocked' THEN 1 ELSE 2 END,
+                    CASE WHEN due_at IS NULL THEN 1 ELSE 0 END,
+                    due_at, created_at DESC, id"""
+        with store.connection() as db:
+            count = db.execute('SELECT COUNT(*) FROM tasks' + where, params).fetchone()[0]
+            items = rows(db.execute('SELECT * FROM tasks' + where + order
+                                    + ' LIMIT ? OFFSET ?', (*params, limit, offset)))
+        return {'items': items, 'total': count, 'offset': offset,
+                'limit': limit, 'has_more': offset + len(items) < count}
 
     @app.post('/api/tasks',status_code=201)
     def add_task(data: TaskIn,_=Depends(require_login)):

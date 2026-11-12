@@ -41,6 +41,8 @@ def run():
                 post('/api/notes',{'title':'Nota da oportunidade','body':'Contexto autorizado','opportunity_id':opportunity})
                 post('/api/tasks',{'title':'Ação comercial vinculada','opportunity_id':opportunity})
 
+                page.locator('#nav [data-tab=today]').click()
+                expect(page.locator('.nexo-suggestions')).to_contain_text('Projeto NEXO fictício')
                 page.locator('#nav [data-tab=projects]').click()
                 expect(page.locator('#pageTitle')).to_have_text('Projetos')
                 requests.clear()

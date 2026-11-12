@@ -39,6 +39,7 @@ vm.runInContext(`api = async function(url) {
  if(url === '/api/workspace') return {
   local_date:'2026-11-11',groups:{now:[],next:[{kind:'opportunity',id:'op',title:'Teste',next_action:'Ligar',due_at:null,priority:1}],later:[],blocked:[]},events:[],alerts:[]};
  if(url === '/api/projects') return [{id:'project-1',name:'Projeto',status:'active'}];
+ if(url === '/api/nexo/suggestions') return [];
  throw Error('Unexpected API ' + url);
 }`, ctx);
 (async () => {

@@ -24,6 +24,7 @@ from .workspace import load_workspace
 from .search import search as search_records
 from .project_context import load_project_context
 from .nexo_context import load_opportunity_context
+from .nexo_insights import load_suggestions
 from .opportunity_board import load_board
 from .transcripts import validate_text, segments, MAX_TRANSCRIPT_BYTES
 
@@ -353,6 +354,10 @@ def create_app(database_path: str | None = None, *, password_hash: str | None = 
             db.execute('UPDATE sessions SET revoked_at=? WHERE nonce=? AND revoked_at IS NULL', (now_utc(),nonce))
         response.delete_cookie('kh_session',path='/')
         return {'ok':True}
+
+    @app.get('/api/nexo/suggestions')
+    def nexo_suggestions(_=Depends(require_login)):
+        return load_suggestions(store)
 
     @app.get('/api/workspace')
     def workspace(_=Depends(require_login)):

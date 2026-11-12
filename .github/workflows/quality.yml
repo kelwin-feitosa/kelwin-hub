@@ -33,6 +33,7 @@ jobs:
           node --check hub/static/app.js
           node --check hub/static/orbita-navigation.js
           node --check hub/static/nexo-context.js
+          node --check hub/static/nexo-suggestions.js
           node --check hub/static/meeting-review.js
           node --check hub/static/availability-ui.js
           node tests/ui_sanity.cjs

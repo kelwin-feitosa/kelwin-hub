@@ -23,6 +23,7 @@ from .automation import TEMPLATES, safe_run_stale
 from .workspace import load_workspace
 from .search import search as search_records
 from .project_context import load_project_context
+from .nexo_context import load_opportunity_context
 from .opportunity_board import load_board
 from .transcripts import validate_text, segments, MAX_TRANSCRIPT_BYTES
 
@@ -462,6 +463,13 @@ def create_app(database_path: str | None = None, *, password_hash: str | None = 
         with store.connection() as db:
             return rows(db.execute('''SELECT o.*, c.name AS contact_name, c.email AS contact_email
                 FROM opportunities o JOIN contacts c ON c.id=o.contact_id ORDER BY o.created_at DESC'''))
+
+    @app.get('/api/opportunities/{ident}/context')
+    def opportunity_context(ident: str, _=Depends(require_login)):
+        data = load_opportunity_context(store, ident)
+        if data is None:
+            raise HTTPException(404, 'Oportunidade não encontrada')
+        return data
 
     @app.get('/api/opportunities/board')
     def opportunity_board(_=Depends(require_login)):

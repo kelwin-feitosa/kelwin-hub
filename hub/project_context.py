@@ -25,7 +25,18 @@ def load_project_context(store, ident: str) -> dict | None:
                  SELECT 1 FROM tasks t WHERE t.id=a.entity_id AND t.project_id=?))
             ORDER BY a.at DESC LIMIT 10
         ''', (ident,ident)))
+        notes = rows(db.execute('''
+            SELECT id,title,substr(body,1,220) AS body,updated_at
+              FROM notes WHERE project_id=?
+             ORDER BY updated_at DESC,id DESC LIMIT 8
+        ''', (ident,)))
+        events = rows(db.execute('''
+            SELECT id,title,start_at,end_at,status
+              FROM events WHERE project_id=? AND status!='cancelled'
+             ORDER BY start_at DESC,id DESC LIMIT 5
+        ''', (ident,)))
         return {
+            'notes': notes, 'events': events,
             'project': dict(project), 'tasks': tasks,
             'counts': {'open':len(open_tasks),'blocked':len(blocked),
                        'done':sum(t['status']=='done' for t in tasks)},

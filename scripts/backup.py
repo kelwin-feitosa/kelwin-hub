@@ -38,6 +38,10 @@ def _valid(db_path):
         names = {r[0] for r in db.execute('SELECT name FROM sqlite_master WHERE type="table"')}
         if not {'projects', 'contacts', 'opportunities', 'tasks', 'automation_configs'} <= names:
             raise ValueError('Arquivo não contém esquema conhecido do Kelwin Hub')
+        # integrity_check does not report broken referential relationships.
+        # Reject corrupted snapshots and restored archives before publication.
+        if db.execute('PRAGMA foreign_key_check').fetchone() is not None:
+            raise ValueError('Banco com violação de chave estrangeira')
 
 
 def backup_db(source: Path, output: Path, password: str):

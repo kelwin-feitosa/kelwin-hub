@@ -1,4 +1,4 @@
-# Kelwin Hub 10.0 — mesa de trabalho contextual (piloto local-first)
+# Kelwin Hub — central pessoal local-first
 
 > **Estado em 11/11/2026:** primeira fatia vertical implementada e testada por HTTP (sem Docker). A versão 10.0 acrescenta **Mesa de trabalho contextual** e captura rápida sem migração de dados. **Não é o Kelwin Hub completo nem uma substituição aprovada da direção Java/Spring registrada no documento canônico.** Integrações reais com n8n, EspoCRM, Gmail, Calendar e GitHub ainda não foram homologadas.
 
@@ -189,3 +189,8 @@ Na Agenda, escolha **Horários livres** para cadastrar faixas semanais, consulta
 
 
 **Missão 13.0 — Citações práticas:** ao importar resultado de ChatGPT, basta enviar `evidence.quote` com um trecho literal **único** da transcrição. `evidence.start` e `evidence.end` são opcionais: o Hub localiza offsets Unicode quando o trecho é único. Citações inexistentes/ambíguas são rejeitadas. Na revisão, é possível pesquisar outras transcrições e excluir o conteúdo após confirmação; backups/exportações anteriores permanecem sob gestão do usuário.
+
+
+## Missão 13.6 — Navegação ÓRBITA
+
+A navegação principal possui quatro destinos estáveis: **Mesa, Projetos, Agenda e Explorar**. As oito áreas originais continuam no catálogo **Explorar** e no iniciador **Buscar / Ctrl+K**, que combina resultados do endpoint local de busca com destinos e ações de criação sem nova API. O botão **Novo** abre a mesma busca filtrada para criação. No celular, a navegação usa um dock inferior com quatro áreas, evitando a faixa horizontal rolável; exportação e encerramento da sessão permanecem disponíveis em Explorar. Nenhuma migração ou serviço pago foi adicionado. Ver `docs/ADR-013-NAVEGACAO-ORBITA.md`.

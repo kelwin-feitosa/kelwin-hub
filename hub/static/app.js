@@ -156,13 +156,43 @@ async function automationsView(){const data=await api('/api/automations'),runs=a
  const history=runs.length?`<div class="list">${runs.slice(0,10).map(x=>`<div class="item"><div class="item-info"><strong>${safe(x.code)}</strong><small>${dateTime(x.executed_at)} · ${x.scanned} analisadas, ${x.created} alertas novos</small></div>${badge(x.status)}</div>`).join('')}</div>`:blank('Ainda não existem execuções.');
  $('content').innerHTML=`<p class="intro">Escolha, configure e teste automações. O n8n permanece opcional e pode ser habilitado depois.</p>${panel('Estado do agendador',`<p>${health.scheduler_enabled?'Agendador local habilitado':'Agendador local desativado'} · última checagem: ${health.last_check_at?dateTime(health.last_check_at):'ainda não realizada'}</p>${health.last_failure_type?`<p role="alert">Falha detectada: ${safe(health.last_failure_type)} · ${dateTime(health.last_failure_at)}</p>`:''}`)}<div class="cards">${cards}</div>${panel('Histórico de execução',history)}<div class="note">O n8n pode ser iniciado separadamente por Docker. O arquivo de workflow opcional está no pacote do projeto. Nenhuma automação deste piloto envia mensagens a terceiros.</div>`;
 }
+let dialogDirty=false,dialogSaving=false;
+function warnUnsavedBeforeUnload(event){event.preventDefault();event.returnValue='';}
+function setDialogDirty(value){
+ if(dialogDirty===value)return;
+ dialogDirty=value;
+ // Only attach while an edited form is open; preserve browser back/forward caching otherwise.
+ if(value)window.addEventListener('beforeunload',warnUnsavedBeforeUnload);
+ else window.removeEventListener('beforeunload',warnUnsavedBeforeUnload);
+}
+function confirmDiscardDialog(){
+ return !dialogDirty||window.confirm('Descartar as alterações não salvas?');
+}
 function openDialog(title,fields,submit,onSuccess=null){
+ const dialog=$('dialog'),form=$('dynamic-form');
+ setDialogDirty(false);dialogSaving=false;
  $('dialog-body').innerHTML=`<h2>${safe(title)}</h2>${fields.map(f=>`<div class="field"><label for="f_${safe(f.key)}">${safe(f.label)}</label>${f.type==='textarea'?`<textarea id="f_${safe(f.key)}" name="${safe(f.key)}" rows="5" maxlength="12000" ${f.required?'required':''}>${safe(f.value||'')}</textarea>`:f.type==='select'?`<select id="f_${safe(f.key)}" name="${safe(f.key)}" ${f.required?'required':''}>${f.options.map(o=>`<option value="${safe(o.value)}" ${f.value===o.value?'selected':''}>${safe(o.label)}</option>`).join('')}</select>`:`<input id="f_${safe(f.key)}" name="${safe(f.key)}" type="${safe(f.type||'text')}" ${f.required?'required':''} ${f.value?`value="${safe(f.value)}"`:''} ${f.min?`min="${safe(f.min)}"`:''} ${f.max?`max="${safe(f.max)}"`:''} ${f.accept?`accept="${safe(f.accept)}"`:''}>`}</div>`).join('')}`;
- $('dialog-error').textContent='';$('dialog').showModal();
- $('dynamic-form').onsubmit=async(e)=>{e.preventDefault();const values=Object.fromEntries(new FormData(e.target).entries());
+ $('dialog-error').textContent='';
+ form.oninput=()=>setDialogDirty(true);
+ form.onchange=()=>setDialogDirty(true);
+ dialog.showModal();
+ form.onsubmit=async(event)=>{
+  event.preventDefault();
+  if(dialogSaving)return;
+  const values=Object.fromEntries(new FormData(form).entries());
   const invalid=fields.find(f=>f.required&&typeof values[f.key]==='string'&&!values[f.key].trim());
-  if(invalid){$('dialog-error').textContent=`${invalid.label}: campo obrigatório não pode ficar vazio`;$(`f_${invalid.key}`)?.focus();return}
-  try{await submit(values);$('dialog').close();notify('Registro salvo');if(onSuccess){await onSuccess()}else{await showTab(tab)}}catch(error){$('dialog-error').textContent=error.message}};
+  if(invalid){$('dialog-error').textContent=`${invalid.label}: campo obrigatório não pode ficar vazio`;$('f_'+invalid.key)?.focus();return}
+  const save=form.querySelector('button[type=submit]'),cancel=$('cancel-dialog'),label=save.textContent;
+  dialogSaving=true;save.disabled=true;cancel.disabled=true;save.textContent='Salvando…';
+  try{
+   await submit(values);
+   setDialogDirty(false);
+   dialog.close();
+   notify('Registro salvo');
+   if(onSuccess){await onSuccess()}else{await showTab(tab)}
+  }catch(error){$('dialog-error').textContent=error.message}
+  finally{dialogSaving=false;save.disabled=false;cancel.disabled=false;save.textContent=label}
+ };
 }
 const field=(key,label,type='text',required=true)=>({key,label,type,required});
 async function addContact(){openDialog('Novo contato',[field('name','Nome'),field('company','Empresa','text',false),field('email','E-mail','email',false),field('phone','Telefone','text',false)],(x)=>api('/api/contacts','POST',x))}

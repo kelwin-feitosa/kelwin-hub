@@ -32,9 +32,11 @@ jobs:
           python -m compileall -q hub scripts
           node --check hub/static/app.js
           node --check hub/static/orbita-navigation.js
+          node --check hub/static/nexo-context.js
           node --check hub/static/meeting-review.js
           node --check hub/static/availability-ui.js
           node tests/ui_sanity.cjs
           node tests/orbita_ui_sanity.cjs
+          node tests/nexo_ui_sanity.cjs
       - name: Whitespace check
         run: git diff --check HEAD^ HEAD

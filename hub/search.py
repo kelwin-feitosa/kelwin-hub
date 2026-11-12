@@ -5,8 +5,6 @@ avoids creating a permanently synchronized search database. Read-only.
 """
 import unicodedata
 
-from .storage import rows
-
 KINDS = {
     'projects': {
         'label': 'Projetos',
@@ -56,22 +54,30 @@ def search(store, query: str, *, per_kind: int = 8, total: int = 40) -> dict:
     query = ' '.join(query.split())
     if not (2 <= len(query) <= 100):
         raise ValueError('Use entre 2 e 100 caracteres para pesquisar')
-    words = folded(query).split()
+    normalized_query = folded(query)
+    words = normalized_query.split()
     found = []
+    truncated_by_kind = False
     with store.connection() as db:
-        for kind, spec in KINDS.items():
+        for kind_order, (kind, spec) in enumerate(KINDS.items()):
             candidates = []
-            for item in rows(db.execute(spec['sql'])):
+            for row in db.execute(spec['sql']):
+                item = dict(row)
                 title = folded(item['title'])
-                context = folded(' '.join(str(item.get(k) or '') for k in ('detail','terms')))
-                if not all(term in title or term in context for term in words):
-                    continue
+                # Search the longer related context only when the title alone
+                # cannot satisfy every term; avoids repeated Unicode work.
+                title_matches = all(term in title for term in words)
+                if not title_matches:
+                    context = folded(' '.join(str(item.get(k) or '') for k in ('detail','terms')))
+                    if not all(term in title or term in context for term in words):
+                        continue
                 # Exact title > starts-with > title token > context-only.
-                rank = 0 if title == folded(query) else 1 if title.startswith(folded(query)) else 2 if all(w in title for w in words) else 3
+                rank = 0 if title == normalized_query else 1 if title.startswith(normalized_query) else 2 if title_matches else 3
                 candidates.append((rank, title, {'id': item['id'], 'kind': kind,
                    'label': spec['label'], 'title': item['title'],
                    'detail': item.get('detail') or '', 'status': item['status']}))
             candidates.sort(key=lambda row: (row[0], row[1]))
-            found.extend((rank, order, item) for rank, _, item in candidates[:per_kind] for order in [list(KINDS).index(kind)])
+            truncated_by_kind |= len(candidates) > per_kind
+            found.extend((rank, kind_order, item) for rank, _, item in candidates[:per_kind])
     found.sort(key=lambda row: (row[0], row[1], folded(row[2]['title'])))
-    return {'query': query, 'results': [item for _, _, item in found[:total]], 'limited': len(found) > total}
+    return {'query': query, 'results': [item for _, _, item in found[:total]], 'limited': truncated_by_kind or len(found) > total}

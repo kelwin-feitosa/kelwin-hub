@@ -12,12 +12,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
           cache: pip
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
       - name: Install with test and backup extras
@@ -28,6 +31,8 @@ jobs:
         run: |
           python -m compileall -q hub scripts
           node --check hub/static/app.js
+          node --check hub/static/meeting-review.js
+          node --check hub/static/availability-ui.js
           node tests/ui_sanity.cjs
       - name: Whitespace check
-        run: git diff --check
+        run: git diff --check HEAD^ HEAD

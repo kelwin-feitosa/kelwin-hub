@@ -4,7 +4,7 @@ const safe=(v)=>String(v??'').replace(/[&<>"']/g,(x)=>({'&':'&amp;','<':'&lt;','
 const dateTime=(v)=>v?new Date(v).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'}):'Sem data';
 const localInputValue=(value)=>{const d=new Date(value);const local=new Date(d.getTime()-d.getTimezoneOffset()*60000);return local.toISOString().slice(0,16)};
 let csrf=null,tab='today',toastTimeout;
-const tabs={today:'Mesa de trabalho',tasks:'Tarefas',projects:'Projetos',contacts:'Contatos',opportunities:'Oportunidades',events:'Agenda',notes:'Notas',automations:'Automações'};
+const tabs={today:'Mesa de trabalho',tasks:'Tarefas',projects:'Projetos',contacts:'Contatos',opportunities:'Oportunidades',events:'Agenda',notes:'Notas',automations:'Automações',explore:'Explorar'};
 function notify(message){const el=$('toast');el.textContent=message;el.classList.add('show');clearTimeout(toastTimeout);toastTimeout=setTimeout(()=>el.classList.remove('show'),3300)}
 async function api(url,method='GET',data){
  const headers={'Accept':'application/json'};
@@ -24,7 +24,7 @@ function openSearch(){
  searchPreviousFocus=document.activeElement;
  $('search-query').value='';
  $('search-results').innerHTML='<p class="muted">Digite para encontrar registros.</p>';
- $('search-dialog').showModal();$('search-query').focus();
+ $('search-dialog').showModal();window.KelwinNav?.showSuggestions();$('search-query').focus();
 }
 function searchResult(item){
  const kind={projects:'Projeto',tasks:'Tarefa',contacts:'Contato',opportunities:'Oportunidade',events:'Agenda',notes:'Nota'}[item.kind]||'Registro';
@@ -33,12 +33,12 @@ function searchResult(item){
 async function doSearch(){
  const raw=$('search-query').value.trim();
  const seq=++searchSequence;
- if(raw.length<2){$('search-results').innerHTML='<p class="muted">Digite pelo menos 2 caracteres.</p>';return}
- $('search-results').innerHTML='<p class="muted">Procurando…</p>';
+ if(raw.length<2){$('search-results').innerHTML=window.KelwinNav?.commandSuggestions(raw)||'<p class="muted">Nenhuma ação encontrada.</p>';return}
+ $('search-results').innerHTML=(window.KelwinNav?.commandSuggestions(raw)||'')+'<p class="muted">Procurando registros…</p>';
  try{
   const data=await api('/api/search?q='+encodeURIComponent(raw));
   if(seq!==searchSequence||!$('search-dialog').open)return;
-  $('search-results').innerHTML=data.results.length?data.results.map(searchResult).join(''):'<p class="muted">Nenhum registro encontrado.</p>';
+  $('search-results').innerHTML=(window.KelwinNav?.commandSuggestions(raw)||'')+(data.results.length?'<section class="orbit-command-group" aria-label="Registros"><h3>Registros</h3>'+data.results.map(searchResult).join('')+'</section>':'<p class="muted">Nenhum registro correspondente.</p>');
  }catch(error){if(seq===searchSequence)$('search-results').textContent='Não foi possível pesquisar: '+error.message}
 }
 function closeSearch(){
@@ -49,9 +49,9 @@ function panel(title,body,other=''){return `<section class="panel"><div class="s
 function blank(label){return `<p class="blank">${safe(label)}</p>`}
 function badge(label,type=''){return `<span class="pill ${type}">${safe(label)}</span>`}
 async function showTab(name,focusId=null){
- tab=name;document.querySelectorAll('[data-tab]').forEach(b=>{b.classList.toggle('active',b.dataset.tab===name);b.setAttribute('aria-current',b.dataset.tab===name?'page':'false')});
+ tab=name;window.KelwinNav?.onPage(name);
  $('pageTitle').textContent=tabs[name];$('content').innerHTML='<p class="muted">Carregando...</p>';
- try{const render={today:todayView,tasks:tasksView,projects:projectsView,contacts:contactsView,opportunities:opportunitiesView,events:eventsView,notes:notesView,automations:automationsView};await render[name]();if(focusId&&name==='projects')await showProjectContext(focusId);if(focusId){const target=document.getElementById(`${name}-item-${focusId}`);if(target){target.scrollIntoView({block:'center',behavior:'auto'});target.tabIndex=-1;target.focus()}}}catch(error){$('content').innerHTML=panel('Não foi possível carregar',`<p>${safe(error.message)}</p>`)}
+ try{const render={today:todayView,tasks:tasksView,projects:projectsView,contacts:contactsView,opportunities:opportunitiesView,events:eventsView,notes:notesView,automations:automationsView,explore:window.KelwinNav.exploreView};await render[name]();if(focusId&&name==='projects')await showProjectContext(focusId);if(focusId){const target=document.getElementById(`${name}-item-${focusId}`);if(target){target.scrollIntoView({block:'center',behavior:'auto'});target.tabIndex=-1;target.focus()}}}catch(error){$('content').innerHTML=panel('Não foi possível carregar',`<p>${safe(error.message)}</p>`)}
 }
 // The Mesa is a contextual projection, not another owner of tasks or opportunities.
 function workRow(item){
@@ -266,7 +266,7 @@ window.addEventListener('DOMContentLoaded',async()=>{
   closeSearch();await showTab(tabName,id);
  });
  $('nav').addEventListener('click',(e)=>{const b=e.target.closest('[data-tab]');if(b)showTab(b.dataset.tab)});
- $('content').addEventListener('click',(e)=>{const b=e.target.closest('[data-do]');if(b)handleAction(b)});
+ $('content').addEventListener('click',(e)=>{const b=e.target.closest('button[data-tab],button[data-do]');if(!b)return;if(b.dataset.tab)showTab(b.dataset.tab);else handleAction(b)});
  $('content').addEventListener('submit',(e)=>{if(e.target.id==='quick-task'){e.preventDefault();quickCapture(e.target)}});
  document.addEventListener('keydown',(e)=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'&&!$('shell').hidden){e.preventDefault();openSearch();return}const tag=document.activeElement?.tagName;const busy=['INPUT','TEXTAREA','SELECT'].includes(tag)||$('dialog').open||$('search-dialog').open;if(e.key.toLowerCase()==='q'&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!busy&&!$('shell').hidden){e.preventDefault();showTab('today').then(()=>$('quick-title')?.focus())}});
  $('logout').addEventListener('click',async()=>{try{await api('/api/logout','POST',{})}finally{showAuth()}});

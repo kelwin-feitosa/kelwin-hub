@@ -84,3 +84,35 @@ def test_preflight_warns_on_insecure_env_file(tmp_path):
     result = inspect_installation(env, db_path)
     assert result['status'] == 'warning'
     assert any('.env' in warning for warning in result['warnings'])
+
+def test_init_env_never_exposes_secrets_during_creation(tmp_path, monkeypatch):
+    from scripts import init_env
+
+    monkeypatch.setattr(init_env, 'ROOT', tmp_path)
+    monkeypatch.setattr(init_env.getpass, 'getpass', lambda _: 'Senha-sintetica-de-teste-2026!')
+    monkeypatch.setattr(init_env, 'hash_password', lambda password: 'hash-ficticio-testado-separadamente')
+    original_umask = os.umask(0o022)
+    try:
+        init_env.main()
+    finally:
+        os.umask(original_umask)
+    target = tmp_path / '.env'
+    assert target.is_file()
+    assert stat.S_IMODE(target.stat().st_mode) == 0o600
+    content = target.read_text(encoding='utf-8')
+    assert 'HUB_SESSION_SECRET=' in content
+    assert 'HUB_PASSWORD_HASH=hash-ficticio-testado-separadamente' in content
+    assert 'Senha-sintetica-de-teste-2026!' not in content
+    with pytest.raises(SystemExit, match='preservado'):
+        init_env.main()
+    assert target.read_text(encoding='utf-8') == content
+
+
+def test_store_rejects_db_symlink(tmp_path):
+    destination = tmp_path / 'actual.db'
+    destination.write_bytes(b'preserve')
+    linked = tmp_path / 'hub.db'
+    linked.symlink_to(destination)
+    with pytest.raises(RuntimeError, match='simbólico'):
+        Store(str(linked))
+    assert destination.read_bytes() == b'preserve'

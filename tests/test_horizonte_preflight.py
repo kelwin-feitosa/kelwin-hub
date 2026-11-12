@@ -11,8 +11,8 @@ from scripts.preflight import inspect_installation
 
 def private_config(path):
     path.write_text(
-        'HUB_PASSWORD_HASH=test-hash-not-a-real-credential\\n'
-        'HUB_SESSION_SECRET=test-secret-not-a-real-credential\\n',
+        'HUB_PASSWORD_HASH=test-hash-not-a-real-credential\n'
+        'HUB_SESSION_SECRET=test-secret-not-a-real-credential\n',
         encoding='utf-8')
     path.chmod(0o600)
     return path

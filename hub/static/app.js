@@ -78,7 +78,35 @@ async function todayView(){
  const opts=projects.filter(p=>p.status==='active').map(p=>`<option value="${safe(p.id)}">${safe(p.name)}</option>`).join('');
  const intro=`<div class="work-hero"><p class="eyebrow">SEU ESPAÇO · ${safe(data.local_date)}</p><h2>Um próximo passo de cada vez.</h2><p>Projetos e oportunidades juntos, organizados pelo que precisa de atenção. Sem criar registros duplicados.</p></div>`;
  const capture=`<form id="quick-task" class="quick-capture" aria-label="Captura rápida de tarefa"><div class="quick-primary"><label for="quick-title">Adicionar uma ação</label><div class="quick-input-row"><input id="quick-title" name="title" type="text" maxlength="200" required placeholder="O que você precisa fazer?" autocomplete="off"><button class="primary" type="submit">Adicionar</button></div></div><div class="quick-details"><label for="quick-project">Projeto <select id="quick-project" name="project_id"><option value="">Sem projeto</option>${opts}</select></label><label for="quick-due">Prazo (opcional) <input id="quick-due" type="datetime-local" name="due_at"></label></div><p id="quick-error" role="alert" class="form-error"></p></form>`;
- $('content').innerHTML=`${intro}${capture}${window.KelwinNexo?.recentMarkup()||''}${window.KelwinSuggestions?.render(suggestions)||''}<div class="work-layout"><div class="work-main">${workSection('Precisa de atenção','Vencidas, para hoje ou urgentes',pending.now,'Nenhuma ação urgente.')} ${workSection('Próximos passos','Sem prazo ou nos próximos sete dias',pending.next,'Nenhuma ação na sequência.')} ${pending.blocked.length?workSection('Dependem de algo','Tarefas bloqueadas',pending.blocked,''):''}${pending.later.length?workSection('Mais adiante','Compromissos futuros',pending.later,''):''}</div><aside class="work-aside" aria-label="Contexto do dia"><section><h3>Agenda de hoje</h3>${agenda}<button type="button" class="text-action" data-do="open-events">Ver agenda</button></section><section><h3>Alertas locais</h3>${alerts}</section><p class="work-footnote">Somente informações registradas neste Hub. Calendários externos não estão conectados.</p></aside></div>`;
+ const focus=`<section class="panel focus-session" aria-labelledby="focus-heading">
+  <h2 id="focus-heading">Um bloco de trabalho pessoal</h2>
+  <p>Escolha quanto tempo você tem de verdade. O Hub sugere tarefas com estimativas cadastradas, sem reservar sua agenda.</p>
+  <form id="focus-form" class="focus-form">
+   <label for="focus-minutes">Tempo disponível</label>
+   <select id="focus-minutes" name="minutes"><option value="15">15 minutos</option><option value="30" selected>30 minutos</option><option value="60">60 minutos</option><option value="90">90 minutos</option></select>
+   <button type="submit" class="mini">Ver opções</button>
+  </form>
+  <div id="focus-results" aria-live="polite"><p class="muted">Defina a duração estimada ao criar ou editar uma tarefa.</p></div>
+ </section>`;
+ $('content').innerHTML=`${intro}${capture}${focus}${window.KelwinNexo?.recentMarkup()||''}${window.KelwinSuggestions?.render(suggestions)||''}<div class="work-layout"><div class="work-main">${workSection('Precisa de atenção','Vencidas, para hoje ou urgentes',pending.now,'Nenhuma ação urgente.')} ${workSection('Próximos passos','Sem prazo ou nos próximos sete dias',pending.next,'Nenhuma ação na sequência.')} ${pending.blocked.length?workSection('Dependem de algo','Tarefas bloqueadas',pending.blocked,''):''}${pending.later.length?workSection('Mais adiante','Compromissos futuros',pending.later,''):''}</div><aside class="work-aside" aria-label="Contexto do dia"><section><h3>Agenda de hoje</h3>${agenda}<button type="button" class="text-action" data-do="open-events">Ver agenda</button></section><section><h3>Alertas locais</h3>${alerts}</section><p class="work-footnote">Somente informações registradas neste Hub. Calendários externos não estão conectados.</p></aside></div>`;
+}
+async function showFocus(minutes){
+ const target=$('focus-results');if(!target)return;
+ target.textContent='Consultando tarefas pessoais…';
+ try{
+  const data=await api('/api/focus?minutes='+encodeURIComponent(String(minutes)));
+  if(target!==$('focus-results'))return;
+  target.innerHTML=data.items.length?data.items.map(x=>`<article class="focus-item">
+   <span><strong>${safe(x.title)}</strong><small>${x.estimated_minutes} min estimados${x.due_at?' · Prazo '+dateTime(x.due_at):''}</small></span>
+   <button type="button" class="mini" data-do="edit-task" data-id="${safe(x.id)}">Abrir tarefa</button>
+  </article>`).join(''):`<p class="muted">Nenhuma tarefa aberta com estimativa de até ${data.minutes} minutos.</p>`;
+  if(data.unestimated_open_tasks){
+   const notice=document.createElement('p');
+   notice.className='muted';
+   notice.textContent=`${data.unestimated_open_tasks} tarefa(s) ainda sem estimativa e não incluídas aqui.`;
+   target.append(notice);
+  }
+ }catch(error){if(target===$('focus-results'))target.textContent='Não foi possível consultar: '+error.message}
 }
 async function quickCapture(form){
  const title=form.querySelector('[name="title"]').value.trim();
@@ -232,7 +260,7 @@ async function addContact(){openDialog('Novo contato',[field('name','Nome'),fiel
 async function addProject(){openDialog('Novo projeto',[field('name','Nome'),field('area','Área (pessoal, estudos, trabalho...)')],(x)=>api('/api/projects','POST',x))}
 async function addOpportunity(){const contacts=await api('/api/contacts');if(!contacts.length){notify('Cadastre um contato primeiro');await showTab('contacts');return}
  openDialog('Nova oportunidade',[{key:'contact_id',label:'Contato',type:'select',required:true,options:contacts.map(x=>({value:x.id,label:x.name}))},field('title','Descrição'),{key:'kind',label:'Categoria',type:'select',required:true,options:[{value:'service',label:'Serviço/cliente'},{value:'job',label:'Candidatura'},{value:'music',label:'Música'},{value:'other',label:'Outra'}]},field('next_action','Próxima ação'),field('followup_at','Prazo para retorno','datetime-local',false),field('value_brl','Valor estimado (R$)','number',false)],(x)=>api('/api/opportunities','POST',{...x,followup_at:x.followup_at||null,value_brl:x.value_brl||null}))}
-async function addTask(opportunityId,projectId=null){const projects=await api('/api/projects');const linked=opportunityId?(await api('/api/opportunities')).find(x=>x.id===opportunityId):null;const opts=[{value:'',label:'Sem projeto'},...projects.map(x=>({value:x.id,label:x.name}))];openDialog('Nova tarefa',[{...field('title','O que fazer?'),value:linked?.next_action||''},{key:'project_id',label:'Projeto',type:'select',required:false,value:projectId||'',options:opts},{...field('due_at','Prazo','datetime-local',false),value:linked?.followup_at?localInputValue(linked.followup_at):''},{key:'priority',label:'Prioridade',type:'select',required:true,options:[{value:'1',label:'Normal'},{value:'2',label:'Alta'},{value:'3',label:'Urgente'},{value:'0',label:'Baixa'}]}],(x)=>api('/api/tasks','POST',{...x,priority:Number(x.priority),project_id:x.project_id||null,opportunity_id:opportunityId||null,due_at:x.due_at||null}),opportunityId?()=>showTab('opportunities',opportunityId):projectId?()=>showTab('projects',projectId):null)}
+async function addTask(opportunityId,projectId=null){const projects=await api('/api/projects');const linked=opportunityId?(await api('/api/opportunities')).find(x=>x.id===opportunityId):null;const opts=[{value:'',label:'Sem projeto'},...projects.map(x=>({value:x.id,label:x.name}))];openDialog('Nova tarefa',[{...field('title','O que fazer?'),value:linked?.next_action||''},{key:'project_id',label:'Projeto',type:'select',required:false,value:projectId||'',options:opts},{...field('due_at','Prazo','datetime-local',false),value:linked?.followup_at?localInputValue(linked.followup_at):''},{key:'estimated_minutes',label:'Duração estimada em minutos (opcional)',type:'number',required:false,min:5,max:480},{key:'priority',label:'Prioridade',type:'select',required:true,options:[{value:'1',label:'Normal'},{value:'2',label:'Alta'},{value:'3',label:'Urgente'},{value:'0',label:'Baixa'}]}],(x)=>api('/api/tasks','POST',{...x,priority:Number(x.priority),estimated_minutes:x.estimated_minutes?Number(x.estimated_minutes):null,project_id:x.project_id||null,opportunity_id:opportunityId||null,due_at:x.due_at||null}),opportunityId?()=>showTab('opportunities',opportunityId):projectId?()=>showTab('projects',projectId):null)}
 async function addNote(projectId=null,opportunityId=null){
  const [projects,contacts,opportunities]=await Promise.all([api('/api/projects'),api('/api/contacts'),api('/api/opportunities')]);
  const options=(rows,label)=>[{value:'',label},...rows.map(item=>({value:item.id,label:item.name||item.title}))];
@@ -297,7 +325,7 @@ async function editContact(id){const item=(await api('/api/contacts')).find(x=>x
 async function editOpportunity(id){const item=(await api('/api/opportunities')).find(x=>x.id===id);if(!item)throw Error('Oportunidade não encontrada');
  openDialog('Editar oportunidade',[{...field('title','Título'),value:item.title},{...field('next_action','Próxima ação'),value:item.next_action},{key:'status',label:'Situação',type:'select',required:true,value:item.status,options:[{value:'new',label:'Nova'},{value:'active',label:'Ativa'},{value:'waiting',label:'Aguardando'},{value:'won',label:'Concluída/ganha'},{value:'lost',label:'Perdida'},{value:'archived',label:'Arquivada'}]},{...field('followup_at','Próximo retorno','datetime-local',false),value:item.followup_at?localInputValue(item.followup_at):''}],x=>api(`/api/opportunities/${id}`,'PATCH',{...x,followup_at:x.followup_at||null}),()=>showTab('opportunities',id))}
 async function editTask(id){const item=(await api('/api/tasks')).find(x=>x.id===id);if(!item)throw Error('Tarefa não encontrada');
- openDialog('Editar tarefa',[{...field('title','Título'),value:item.title},{...field('due_at','Prazo','datetime-local',false),value:item.due_at?localInputValue(item.due_at):''},{key:'status',label:'Estado',type:'select',required:true,value:item.status,options:[{value:'open',label:'Aberta'},{value:'blocked',label:'Bloqueada'},{value:'done',label:'Concluída'}]}],x=>api(`/api/tasks/${id}`,'PATCH',{...x,due_at:x.due_at||null}))}
+ openDialog('Editar tarefa',[{...field('title','Título'),value:item.title},{...field('due_at','Prazo','datetime-local',false),value:item.due_at?localInputValue(item.due_at):''},{key:'estimated_minutes',label:'Duração estimada em minutos (opcional)',type:'number',required:false,min:5,max:480,value:item.estimated_minutes||''},{key:'status',label:'Estado',type:'select',required:true,value:item.status,options:[{value:'open',label:'Aberta'},{value:'blocked',label:'Bloqueada'},{value:'done',label:'Concluída'}]}],x=>api(`/api/tasks/${id}`,'PATCH',{...x,due_at:x.due_at||null,estimated_minutes:x.estimated_minutes?Number(x.estimated_minutes):null}))}
 async function editEvent(id){const item=(await api('/api/events')).find(x=>x.id===id);if(!item)throw Error('Evento não encontrado');
  openDialog('Editar compromisso',[{...field('title','Título'),value:item.title},
  {...field('start_at','Início','datetime-local'),value:localInputValue(item.start_at)},
@@ -332,6 +360,7 @@ window.addEventListener('DOMContentLoaded',async()=>{
  $('content').addEventListener('click',(e)=>{const b=e.target.closest('button[data-tab],button[data-do]');if(!b)return;if(b.dataset.tab)showTab(b.dataset.tab);else handleAction(b)});
  $('content').addEventListener('submit',(e)=>{
   if(e.target.id==='quick-task'){e.preventDefault();quickCapture(e.target);return}
+  if(e.target.id==='focus-form'){e.preventDefault();showFocus(Number($('focus-minutes').value));return}
   if(e.target.id==='tasks-filter-form'){
    e.preventDefault();taskPage=0;taskStatus=$('task-status').value;taskQuery=$('task-query').value.trim();
    tasksView().catch(error=>notify('Erro ao filtrar tarefas: '+error.message));

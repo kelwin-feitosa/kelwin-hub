@@ -16,6 +16,7 @@ MIGRATION_NAMES = {
     5: '005_meeting_review.sql',
     6: '006_availability_windows.sql',
     7: '007_context_lookup_indexes.sql',
+    8: '008_task_estimate.sql',
 }
 LATEST_SCHEMA_VERSION = max(MIGRATION_NAMES)
 

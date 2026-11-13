@@ -226,3 +226,13 @@ Antes da atualização, ainda é obrigatório fazer backup criptografado, mantê
 ### HORIZONTE — lista de tarefas paginada
 
 A seção **Tarefas** usa `GET /api/tasks/page?limit=30&offset=0&status=all&q=`, com máximo de 100 itens por resposta, contagem real, ordenação estável e filtros de status/título. Busca textual trata caracteres `%` e `_` literalmente. A interface oferece **Anterior / Próxima**, estado vazio e controles para teclado e telas pequenas. O endpoint antigo `GET /api/tasks` permanece para compatibilidade com integrações internas existentes; não usá-lo para renderizar listas grandes. A filtragem de título utiliza SQLite `lower` básico, sem prometer equivalência de acentos Unicode.
+
+## Missão 16.0 — blocos de foco pessoal
+
+Na **Mesa**, escolha voluntariamente um bloco de 15, 30, 60 ou 90 minutos. O Hub mostra tarefas **abertas** cuja **duração foi cadastrada explicitamente** e não excede o bloco. A criação e a edição de tarefas permitem estimativa opcional de 5 a 480 minutos.
+
+A migração aditiva **008** preserva tarefas anteriores com duração desconhecida (NULL). O endpoint autenticado GET /api/focus?minutes=30 é somente leitura e devolve até dez opções. Não envia informações externas, não registra atividade e não reserva horário.
+
+**A consulta não comprova que existe tempo livre**, pois o horário definitivo do estágio não foi importado nem foi autorizado acesso ao calendário da S2. O Hub permanece pessoal: metas de aprendizado e horários genéricos podem ser cadastrados voluntariamente; dados internos da empresa, credenciais e transcrições precisam de autorização adequada.
+
+Veja docs/ADR-017-FOCO-PESSOAL.md.

@@ -177,3 +177,15 @@ a:focus-visible,.context-link:focus-visible,.text-action:focus-visible{outline:3
 .task-pagination{display:flex;justify-content:center;gap:16px;align-items:center;flex-wrap:wrap;color:var(--muted);font-size:12px}
 .task-pagination button:disabled{opacity:.48;cursor:default}
 @media(max-width:480px){.task-filters{align-items:stretch}.task-filters input{flex:1 1 100%;max-width:none}.task-filters label{align-self:center}.task-pagination{gap:8px}}
+
+/* A personal, non-binding focus preview; no external calendar or work data. */
+.focus-session{display:grid;gap:12px}
+.focus-session h2{font-size:18px}
+.focus-session p{max-width:650px}
+.focus-form{display:flex;align-items:center;flex-wrap:wrap;gap:12px}
+.focus-form label{font-size:12px;font-weight:700;color:var(--muted)}
+.focus-form select{border:1px solid var(--border);border-radius:9px;padding:8px 11px;background:var(--panel);color:var(--text)}
+.focus-item{display:flex;align-items:center;justify-content:space-between;gap:14px;border-top:1px solid var(--border);padding:12px 0}
+.focus-item strong{display:block;overflow-wrap:anywhere;font-size:14px}
+.focus-item small{display:block;color:var(--muted)}
+@media(max-width:480px){.focus-form select{flex:1}.focus-item{align-items:start}}

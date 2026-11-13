@@ -147,6 +147,7 @@ class TaskIn(Strict):
     priority: int = Field(default=1,ge=0,le=3)
     due_at: str | None = None
     next_action: str = Field(default='',max_length=300)
+    estimated_minutes: int | None = Field(default=None,ge=5,le=480)
 
 class TaskUpdate(Strict):
     status: str | None = None
@@ -154,6 +155,7 @@ class TaskUpdate(Strict):
     due_at: str | None = None
     priority: int | None = Field(default=None,ge=0,le=3)
     next_action: str | None = Field(default=None,max_length=300)
+    estimated_minutes: int | None = Field(default=None,ge=5,le=480)
 
 class EventIn(Strict):
     title: str = Field(min_length=1,max_length=180)
@@ -563,6 +565,26 @@ def create_app(database_path: str | None = None, *, password_hash: str | None = 
         return {'items': items, 'total': count, 'offset': offset,
                 'limit': limit, 'has_more': offset + len(items) < count}
 
+    @app.get('/api/focus')
+    def focus_options(minutes: int = Query(30, ge=5, le=240), _=Depends(require_login)):
+        """Read-only suggestions constrained solely by user-entered durations.
+
+        Never claim that a window is truly free; never infer work schedules.
+        """
+        with store.connection() as db:
+            items = rows(db.execute('''
+                SELECT id,title,priority,due_at,estimated_minutes,project_id,opportunity_id
+                  FROM tasks
+                 WHERE status='open' AND estimated_minutes IS NOT NULL
+                   AND estimated_minutes <= ?
+                 ORDER BY CASE WHEN due_at IS NULL THEN 1 ELSE 0 END,
+                          due_at ASC, priority DESC, estimated_minutes ASC, id ASC
+                 LIMIT 10
+            ''', (minutes,)))
+            unknown = db.execute("SELECT count(*) FROM tasks WHERE status='open' AND estimated_minutes IS NULL").fetchone()[0]
+        return {'minutes':minutes,'items':items,'unestimated_open_tasks':unknown,
+                'notice':'Opções baseadas apenas em estimativas cadastradas; não verifica sua agenda nem reserva horários.'}
+
     @app.post('/api/tasks',status_code=201)
     def add_task(data: TaskIn,_=Depends(require_login)):
         ident=new_id()
@@ -571,9 +593,12 @@ def create_app(database_path: str | None = None, *, password_hash: str | None = 
                 raise HTTPException(404,'Projeto não encontrado')
             if data.opportunity_id and not db.execute('SELECT 1 FROM opportunities WHERE id=?',(data.opportunity_id,)).fetchone():
                 raise HTTPException(404,'Oportunidade não encontrada')
-            db.execute('INSERT INTO tasks VALUES (?,?,?,?,?,?,?,?,?,?)',(
+            db.execute('''INSERT INTO tasks
+                (id,title,project_id,opportunity_id,status,priority,due_at,next_action,
+                 completed_at,created_at,estimated_minutes)
+                 VALUES (?,?,?,?,?,?,?,?,?,?,?)''',(
                 ident,data.title.strip(),data.project_id,data.opportunity_id,'open',data.priority,
-                timestamp(data.due_at),data.next_action.strip(),None,now_utc()))
+                timestamp(data.due_at),data.next_action.strip(),None,now_utc(),data.estimated_minutes))
             record(db,'task',ident,'create')
         return {'id':ident}
 

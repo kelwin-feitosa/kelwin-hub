@@ -19,7 +19,7 @@ def test_upgrading_realistic_v6_database_preserves_records(tmp_path):
     # Reopening is idempotent and cannot destroy the old record.
     Store(path)
     with sqlite3.connect(path) as db:
-        assert db.execute('PRAGMA user_version').fetchone()[0] == LATEST_SCHEMA_VERSION == 7
+        assert db.execute('PRAGMA user_version').fetchone()[0] == LATEST_SCHEMA_VERSION == 8
         assert db.execute('SELECT title FROM tasks WHERE id=?',('task1',)).fetchone()[0] == 'Tarefa mantida'
         assert db.execute('PRAGMA integrity_check').fetchone()[0] == 'ok'
         assert not db.execute('PRAGMA foreign_key_check').fetchall()

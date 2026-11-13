@@ -80,7 +80,8 @@ def required_text(value: str) -> str:
 
 
 class Login(Strict):
-    password: str
+    # Keep untrusted login inputs bounded before the PBKDF2 verification step.
+    password: str = Field(min_length=1,max_length=256)
 
 class ProjectIn(Strict):
     name: str = Field(min_length=1,max_length=150)

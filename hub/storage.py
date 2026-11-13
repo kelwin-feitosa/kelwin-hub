@@ -97,6 +97,10 @@ class Store:
         db_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
         if db_path.is_symlink():
             raise RuntimeError('Banco SQLite não pode ser um link simbólico')
+        # WAL/SHM live beside the DB; a group/world-writable directory allows
+        # another local user to replace those paths and corrupt or expose data.
+        if os.name == 'posix' and db_path.parent.stat().st_mode & 0o022:
+            raise RuntimeError('Diretório do banco permite escrita de outros usuários; use chmod 700')
         try:
             fd = os.open(db_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
         except FileExistsError:

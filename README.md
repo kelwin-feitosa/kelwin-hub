@@ -236,3 +236,9 @@ A migração aditiva **008** preserva tarefas anteriores com duração desconhec
 **A consulta não comprova que existe tempo livre**, pois o horário definitivo do estágio não foi importado nem foi autorizado acesso ao calendário da S2. O Hub permanece pessoal: metas de aprendizado e horários genéricos podem ser cadastrados voluntariamente; dados internos da empresa, credenciais e transcrições precisam de autorização adequada.
 
 Veja docs/ADR-017-FOCO-PESSOAL.md.
+
+## Missão 16.0 — ensaio de recuperação com dados fictícios
+
+Antes de migrar uma instalação pessoal, faça backup criptografado e verifique-o em destino separado. Para exercitar o mecanismo **sem acessar dados pessoais**, rode `python scripts/rehearse_upgrade.py` após instalar `.[backup]`. O programa cria um banco fictício v7, cifra um backup, migra para o esquema atual e restaura uma cópia isolada. A CI executa o mesmo roteiro.
+
+O Hub agora rejeita diretórios de banco graváveis por outros usuários no Linux, e o pré-diagnóstico inspeciona permissões do diretório e arquivos WAL/SHM. Caso sua pasta de dados esteja compartilhada, escolha uma pasta privada; não altere permissões de diretórios corporativos ou de outros aplicativos. O acesso HTTP continua restrito a loopback.

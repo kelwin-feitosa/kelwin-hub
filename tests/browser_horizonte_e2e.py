@@ -61,7 +61,7 @@ def run():
                 for index in range(35):
                     response = page.request.post(
                         host + '/api/tasks', headers={'X-CSRF-Token': csrf},
-                        data={'title': f'Tarefa fictícia {index:02d}'})
+                        data={'title': f'Tarefa fictícia {index:02d}', **({'estimated_minutes': 15} if index == 0 else {})})
                     assert response.status == 201, response.text()
                 page.locator('#nav [data-tab=explore]').click()
                 page.locator('.orbit-explore-entry[data-tab=tasks]').click()
@@ -78,6 +78,17 @@ def run():
                 ) <= 2, 'Task filters overflow on mobile viewport'
                 page.locator('[data-do=task-clear]').click()
                 expect(page.locator('[id^="tasks-item-"]')).to_have_count(30)
+                # Explicit personal 15-minute estimate is the only suggested task.
+                page.locator('#nav [data-tab=today]').click()
+                expect(page.locator('#focus-form')).to_be_visible()
+                page.locator('#focus-minutes').select_option('15')
+                page.locator('#focus-form button[type=submit]').click()
+                expect(page.locator('.focus-item')).to_have_count(1)
+                expect(page.locator('.focus-item')).to_contain_text('Tarefa fictícia 00')
+                page.locator('.focus-item [data-do=edit-task]').click()
+                expect(page.locator('#f_estimated_minutes')).to_have_value('15')
+                page.locator('#cancel-dialog').click()
+                expect(page.locator('#dialog')).not_to_be_visible()
                 assert not errors, errors
                 browser.close()
         finally:

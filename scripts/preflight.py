@@ -43,12 +43,13 @@ def inspect_installation(config: Path, database: Path | None = None) -> dict:
     else:
         if config.is_symlink():
             errors.append('Configuração .env não deve ser um link simbólico')
-        elif os.name == 'posix' and stat.S_IMODE(config.stat().st_mode) & 0o077:
-            warnings.append('.env acessível por outros usuários; ajuste para chmod 600')
-        try:
-            values = read_env(config)
-        except (OSError, UnicodeError) as exc:
-            errors.append('Não foi possível ler a configuração: ' + type(exc).__name__)
+        else:
+            if os.name == 'posix' and stat.S_IMODE(config.stat().st_mode) & 0o077:
+                warnings.append('.env acessível por outros usuários; ajuste para chmod 600')
+            try:
+                values = read_env(config)
+            except (OSError, UnicodeError) as exc:
+                errors.append('Não foi possível ler a configuração: ' + type(exc).__name__)
         missing = sorted(key for key in REQUIRED_ENV if not values.get(key))
         if missing:
             errors.append('Configuração incompleta: ' + ', '.join(missing))
@@ -58,6 +59,28 @@ def inspect_installation(config: Path, database: Path | None = None) -> dict:
         db_path = ROOT / db_path
     result = {'status': 'ok', 'schema_version': None, 'expected_schema_version': LATEST_SCHEMA_VERSION,
               'errors': errors, 'warnings': warnings}
+    if db_path.parent.is_symlink():
+        errors.append('Diretório do banco não deve ser um link simbólico')
+    elif not db_path.parent.is_dir():
+        errors.append('Diretório do banco não existe')
+    elif os.name == 'posix':
+        directory_mode = stat.S_IMODE(db_path.parent.stat().st_mode)
+        if directory_mode & 0o022:
+            errors.append('Diretório do banco permite escrita por outros usuários')
+        elif directory_mode & 0o055:
+            warnings.append('Diretório do banco acessível por outros usuários; prefira chmod 700')
+    # SQLite WAL and SHM contain potentially private database contents.
+    # Inspect modes without reading or modifying those sidecar files.
+    for suffix in ('-wal', '-shm'):
+        sidecar = db_path.with_name(db_path.name + suffix)
+        if sidecar.is_symlink():
+            errors.append('Arquivo auxiliar do SQLite não pode ser link simbólico: ' + suffix)
+        elif sidecar.exists():
+            mode = sidecar.stat().st_mode
+            if not stat.S_ISREG(mode):
+                errors.append('Arquivo auxiliar SQLite não é regular: ' + suffix)
+            elif os.name == 'posix' and stat.S_IMODE(mode) & 0o077:
+                warnings.append('Arquivo auxiliar SQLite acessível por outros usuários: ' + suffix)
     if db_path.is_symlink():
         errors.append('Banco de dados não deve ser um link simbólico')
     elif not db_path.is_file():

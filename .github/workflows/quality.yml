@@ -29,6 +29,8 @@ jobs:
         run: python -m pytest -q --disable-warnings
       - name: Rehearse encrypted backup, upgrade and restore on synthetic v7 DB
         run: python scripts/rehearse_upgrade.py
+      - name: Synthetic HTTP latency and payload evidence (informational only)
+        run: python scripts/benchmark_http.py --tasks 1000 --iterations 20
       - name: Python and JavaScript syntax
         run: |
           python -m compileall -q hub scripts

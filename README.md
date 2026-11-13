@@ -242,3 +242,9 @@ Veja docs/ADR-017-FOCO-PESSOAL.md.
 Antes de migrar uma instalação pessoal, faça backup criptografado e verifique-o em destino separado. Para exercitar o mecanismo **sem acessar dados pessoais**, rode `python scripts/rehearse_upgrade.py` após instalar `.[backup]`. O programa cria um banco fictício v7, cifra um backup, migra para o esquema atual e restaura uma cópia isolada. A CI executa o mesmo roteiro.
 
 O Hub agora rejeita diretórios de banco graváveis por outros usuários no Linux, e o pré-diagnóstico inspeciona permissões do diretório e arquivos WAL/SHM. Caso sua pasta de dados esteja compartilhada, escolha uma pasta privada; não altere permissões de diretórios corporativos ou de outros aplicativos. O acesso HTTP continua restrito a loopback.
+
+## Missão 16.0 — evidências de desempenho e jornadas
+
+Execute `python scripts/benchmark_http.py --tasks 1000 --iterations 20` para medir p50, p95 e bytes de quatro rotas em SQLite temporário com dados sintéticos. A CI registra os resultados por commit **sem limites rígidos de desempenho** (máquinas compartilhadas produzem variação). Não representa seu Pop!_OS nem medições de frontend.
+
+A matriz substituta de 15 jornadas e evidências encontra-se em `docs/HOMOLOGACAO-16-JORNADAS.md`. A versão 1.0 ainda exige avaliação humana e instalação/recuperação no computador pessoal. Os gates P0 não são automaticamente aprovados pelo benchmark.

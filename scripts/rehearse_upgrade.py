@@ -32,7 +32,7 @@ def make_v7_database(path:Path):
 def validate(path:Path):
     with Store(str(path)).connection() as db:
         assert db.execute('PRAGMA user_version').fetchone()[0]==LATEST_SCHEMA_VERSION
-        assert db.execute("SELECT title,estimated_minutes FROM tasks WHERE id='task-test'").fetchone()==('Tarefa fictícia',None)
+        assert tuple(db.execute("SELECT title,estimated_minutes FROM tasks WHERE id='task-test'").fetchone())==('Tarefa fictícia',None)
         assert db.execute("SELECT name FROM projects WHERE id='project-test'").fetchone()[0]=='Projeto fictício'
         assert db.execute('PRAGMA integrity_check').fetchone()[0]=='ok'
         assert not db.execute('PRAGMA foreign_key_check').fetchall()

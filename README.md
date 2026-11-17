@@ -260,3 +260,13 @@ Os testes cobrem 121 notas fictícias, paginação, vínculo, autorização e ed
 As visualizações de Mesa, Projetos, Contatos, Oportunidades, Tarefas, Notas, Agenda e Automações verificam um contador global de navegação antes de substituir o conteúdo. Uma resposta ou erro de uma tela abandonada não pode sobrescrever a tela atual, inclusive quando o usuário volta rapidamente à mesma seção. Os contextos carregados em paralelo ignoram regiões já removidas da interface.
 
 O E2E Chromium atrasa deliberadamente a resposta de Projetos, navega para Explorar e solta tanto uma resposta bem-sucedida quanto uma falha: o catálogo permanece intacto. Nenhuma alteração no SQLite, autenticação, cookies ou navegação persistida em URL.
+
+## Missão 18.2 — Mesa com grupos progressivos (H17-01)
+
+A Mesa passa a devolver um conjunto inicial limitado de até **12 ações por grupo**, com os **contadores exatos** de todas as tarefas abertas/bloqueadas e oportunidades sem tarefa ativa vinculada. O botão **Mostrar mais** busca até 30 ações adicionais por solicitação e mantém os vínculos e a ordenação original da interface. As oportunidades vinculadas a tarefas abertas continuam sem duplicar ações. Os eventos do dia aparecem inicialmente em até 12 entradas, com o total verdadeiro e acesso à Agenda completa.
+
+- `GET /api/workspace?per_group=12`: consulta autenticada com `per_group` entre 1 e 50; resposta inclui `group_counts`, `total_actions` e `events_total`, além dos campos anteriores.
+- `GET /api/workspace/groups/next?offset=12&limit=30`: paginação autenticada por `now`, `next`, `later` ou `blocked`. Limites de `offset` 0–1.000.000, `limit` 1–100.
+- A projeção continua **somente leitura**, utiliza os dados originais e não importa informações profissionais externas. Testes cobrem contagem exata, deduplicação, páginas completas e navegação móvel.
+
+**Trade-off:** as consultas ainda percorrem os registros elegíveis para manter agrupamentos por data local e ordenação Unicode idênticos. A memória do carregamento inicial e o tráfego JSON diminuem; páginas muito profundas podem exigir memória proporcional à posição. Não anunciar redução proporcional de CPU ou latência sem benchmark equivalente. Os testes não comprovam o desempenho no Pop!_OS pessoal.

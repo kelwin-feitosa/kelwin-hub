@@ -86,14 +86,40 @@ function workRow(item){
  !isTask?`<button type="button" class="context-link" data-do="open-opportunity" data-id="${safe(item.id)}">Abrir oportunidade</button>`:'');
  return `<article class="work-entry" data-kind="${safe(item.kind)}"><div class="work-entry-main"><div class="work-meta"><span>${isTask?'Tarefa':'Retorno'}</span><span aria-hidden="true">·</span><span>${safe(due)}</span>${context}</div><h4>${safe(item.title)}</h4>${detail?`<p class="work-next">${isTask?'Próximo passo':'Fazer agora'}: ${safe(detail)}</p>`:''}<div class="work-links">${links}</div></div><div class="work-entry-actions">${actions}</div></article>`;
 }
-function workSection(title,description,items,empty){
- return `<section class="work-section" aria-label="${safe(title)}"><header class="work-section-heading"><div><h3>${safe(title)}</h3><p>${safe(description)}</p></div><span class="work-counter" aria-label="${items.length} itens">${items.length}</span></header>${items.length?items.map(workRow).join(''):`<p class="work-empty">${safe(empty)}</p>`}</section>`;
+function workSection(title,description,items,empty,group,total){
+ const count=Number.isInteger(total)?total:items.length;
+ const more=count>items.length?
+  `<div class="work-more"><button type="button" class="mini" data-do="workspace-more" data-group="${safe(group)}" data-offset="${items.length}">Mostrar mais (${count-items.length} restantes)</button></div>`:'';
+ return `<section class="work-section" data-workspace-group="${safe(group)}" aria-label="${safe(title)}"><header class="work-section-heading"><div><h3>${safe(title)}</h3><p>${safe(description)}</p></div><span class="work-counter" aria-label="${count} itens">${count}</span></header><div class="work-items">${items.length?items.map(workRow).join(''):`<p class="work-empty">${safe(empty)}</p>`}</div>${more}</section>`;
+}
+async function showWorkspaceMore(button){
+ if(button.disabled)return;
+ const navToken=navigationSequence;
+ const group=button.dataset.group,offset=Number(button.dataset.offset);
+ if(!['now','next','later','blocked'].includes(group)||!Number.isSafeInteger(offset))return;
+ button.disabled=true;
+ try{
+  const page=await api('/api/workspace/groups/'+group+'?offset='+offset+'&limit=30');
+  if(!isCurrentNavigation('today',navToken)||!button.isConnected)return;
+  const section=button.closest('[data-workspace-group]');
+  if(!section||!page.items.length){button.remove();return}
+  section.querySelector('.work-items').insertAdjacentHTML('beforeend',page.items.map(workRow).join(''));
+  const loaded=offset+page.items.length;
+  button.dataset.offset=String(loaded);
+  if(!page.has_more)button.remove();
+  else button.textContent=`Mostrar mais (${Math.max(0,page.total-loaded)} restantes)`;
+ }catch(error){if(button.isConnected)notify('Não foi possível carregar mais ações: '+error.message)}
+ finally{if(button.isConnected)button.disabled=false}
 }
 async function todayView(){
  const navToken=navigationSequence;
  const [data,projects,suggestions]=await Promise.all([api('/api/workspace'),api('/api/projects'),api('/api/nexo/suggestions')]);
  if(!isCurrentNavigation('today',navToken))return;
  const pending=data.groups;
+ // Older synthetic UI fixtures may omit counts; live API supplies exact totals.
+ const counts=data.group_counts||Object.fromEntries(
+  Object.entries(pending).map(([key,items])=>[key,items.length]));
+ const eventsTotal=Number.isInteger(data.events_total)?data.events_total:data.events.length;
  const agenda=data.events.length?data.events.map(e=>`<div class="work-compact"><strong>${safe(e.title)}</strong><small>${dateTime(e.start_at)} · ${e.status==='confirmed'?'Confirmado':'Proposto (não confirmado)'}</small></div>`).join(''):blank('Nenhum compromisso local hoje.');
  const alerts=data.alerts.length?data.alerts.map(a=>`<div class="work-compact"><strong>${safe(a.title)}</strong><small>Alerta local · ${dateTime(a.created_at)}</small><button type="button" class="text-action" data-do="dismiss" data-id="${safe(a.id)}">Dispensar alerta</button></div>`).join(''):blank('Nenhum alerta pendente.');
  const opts=projects.filter(p=>p.status==='active').map(p=>`<option value="${safe(p.id)}">${safe(p.name)}</option>`).join('');
@@ -109,7 +135,7 @@ async function todayView(){
   </form>
   <div id="focus-results" aria-live="polite"><p class="muted">Defina a duração estimada ao criar ou editar uma tarefa.</p></div>
  </section>`;
- $('content').innerHTML=`${intro}${capture}${focus}${window.KelwinNexo?.recentMarkup()||''}${window.KelwinSuggestions?.render(suggestions)||''}<div class="work-layout"><div class="work-main">${workSection('Precisa de atenção','Vencidas, para hoje ou urgentes',pending.now,'Nenhuma ação urgente.')} ${workSection('Próximos passos','Sem prazo ou nos próximos sete dias',pending.next,'Nenhuma ação na sequência.')} ${pending.blocked.length?workSection('Dependem de algo','Tarefas bloqueadas',pending.blocked,''):''}${pending.later.length?workSection('Mais adiante','Compromissos futuros',pending.later,''):''}</div><aside class="work-aside" aria-label="Contexto do dia"><section><h3>Agenda de hoje</h3>${agenda}<button type="button" class="text-action" data-do="open-events">Ver agenda</button></section><section><h3>Alertas locais</h3>${alerts}</section><p class="work-footnote">Somente informações registradas neste Hub. Calendários externos não estão conectados.</p></aside></div>`;
+ $('content').innerHTML=`${intro}${capture}${focus}${window.KelwinNexo?.recentMarkup()||''}${window.KelwinSuggestions?.render(suggestions)||''}<div class="work-layout"><div class="work-main">${workSection('Precisa de atenção','Vencidas, para hoje ou urgentes',pending.now,'Nenhuma ação urgente.','now',counts.now)} ${workSection('Próximos passos','Sem prazo ou nos próximos sete dias',pending.next,'Nenhuma ação na sequência.','next',counts.next)} ${counts.blocked?workSection('Dependem de algo','Tarefas bloqueadas',pending.blocked,'','blocked',counts.blocked):''}${counts.later?workSection('Mais adiante','Compromissos futuros',pending.later,'','later',counts.later):''}</div><aside class="work-aside" aria-label="Contexto do dia"><section><h3>Agenda de hoje</h3>${agenda}${eventsTotal>data.events.length?`<p class="muted">Mais ${eventsTotal-data.events.length} compromisso(s) na agenda completa.</p>`:''}<button type="button" class="text-action" data-do="open-events">Ver agenda</button></section><section><h3>Alertas locais</h3>${alerts}</section><p class="work-footnote">Somente informações registradas neste Hub. Calendários externos não estão conectados.</p></aside></div>`;
 }
 async function showFocus(minutes){
  const target=$('focus-results');if(!target)return;
@@ -396,7 +422,7 @@ async function editEvent(id){const item=(await api('/api/events')).find(x=>x.id=
  x=>api(`/api/events/${id}`,'PATCH',x))}
 
 async function handleAction(button){const a=button.dataset.do,id=button.dataset.id;const parentRegion=button.closest('.project-context');const activeProject=parentRegion?.id.replace('project-context-','');const activeOpportunity=button.closest('.nexo-opportunity')?.id.replace('opportunity-context-','');
- try{switch(a){case'add-contact':await addContact();return;case'add-note':await addNote();return;case'add-project-note':await addNote(id);return;case'add-opportunity-note':await addNote(null,id);return;case'edit-note':await editNote(id);return;case'add-project':await addProject();return;case'add-opportunity':await addOpportunity();return;case'add-task':await addTask(null);return;case'add-linked-task':await addTask(id);return;case'add-project-task':await addTask(null,id);return;case'project-context':await showProjectContext(id);return;case'opportunity-context':await window.KelwinNexo.showOpportunityContext(id);return;case'review-transcript':await window.KelwinReview.open(id);return;case'add-project-event':await addEvent(id);return;case'add-event':await addEvent();return;case'availability-open':await window.KelwinAvailability.open();return;case'event-transcripts':await showEventTranscripts(id);return;case'import-transcript':await importTranscript(id);return;case'view-transcript':await readTranscript(id,button.dataset.event);return;case'review-transcript':await window.KelwinReview.open(id);return;case'event-window':eventWindow=button.dataset.value;await eventsView();document.querySelector(`[data-do="event-window"][data-value="${eventWindow}"]`)?.focus();return;case'edit-project':await editProject(id);return;case'edit-contact':await editContact(id);return;case'edit-opportunity':await editOpportunity(id);return;case'note-prev':notesPage=Math.max(0,notesPage-1);await notesView();return;case'note-next':notesPage++;await notesView();return;case'task-prev':taskPage=Math.max(0,taskPage-1);await tasksView();return;case'task-next':taskPage++;await tasksView();return;case'task-clear':taskPage=0;taskStatus='all';taskQuery='';await tasksView();return;case'edit-task':await editTask(id);return;case'edit-event':await editEvent(id);return;
+ try{switch(a){case'workspace-more':await showWorkspaceMore(button);return;case'add-contact':await addContact();return;case'add-note':await addNote();return;case'add-project-note':await addNote(id);return;case'add-opportunity-note':await addNote(null,id);return;case'edit-note':await editNote(id);return;case'add-project':await addProject();return;case'add-opportunity':await addOpportunity();return;case'add-task':await addTask(null);return;case'add-linked-task':await addTask(id);return;case'add-project-task':await addTask(null,id);return;case'project-context':await showProjectContext(id);return;case'opportunity-context':await window.KelwinNexo.showOpportunityContext(id);return;case'review-transcript':await window.KelwinReview.open(id);return;case'add-project-event':await addEvent(id);return;case'add-event':await addEvent();return;case'availability-open':await window.KelwinAvailability.open();return;case'event-transcripts':await showEventTranscripts(id);return;case'import-transcript':await importTranscript(id);return;case'view-transcript':await readTranscript(id,button.dataset.event);return;case'review-transcript':await window.KelwinReview.open(id);return;case'event-window':eventWindow=button.dataset.value;await eventsView();document.querySelector(`[data-do="event-window"][data-value="${eventWindow}"]`)?.focus();return;case'edit-project':await editProject(id);return;case'edit-contact':await editContact(id);return;case'edit-opportunity':await editOpportunity(id);return;case'note-prev':notesPage=Math.max(0,notesPage-1);await notesView();return;case'note-next':notesPage++;await notesView();return;case'task-prev':taskPage=Math.max(0,taskPage-1);await tasksView();return;case'task-next':taskPage++;await tasksView();return;case'task-clear':taskPage=0;taskStatus='all';taskQuery='';await tasksView();return;case'edit-task':await editTask(id);return;case'edit-event':await editEvent(id);return;
  case'open-task':await showTab('tasks',id);return;case'open-project':await showTab('projects',id);return;case'open-opportunity':await showTab('opportunities',id);return;case'open-events':await showTab('events');return;
  case'complete':await api(`/api/tasks/${id}`,'PATCH',{status:'done'});break;
  case'contacted':await api(`/api/opportunities/${id}/contact`,'POST',{});break;

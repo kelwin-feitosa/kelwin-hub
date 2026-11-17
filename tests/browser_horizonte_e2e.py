@@ -90,6 +90,15 @@ def run():
                 expect(page.locator('#f_estimated_minutes')).to_have_value('15')
                 page.locator('#cancel-dialog').click()
                 expect(page.locator('#dialog')).not_to_be_visible()
+                # H17-01: Mesa presents exact counts and progressively reveals all 35 actions.
+                page.locator('#nav [data-tab=today]').click()
+                expect(page.locator('[data-workspace-group=next] .work-counter')).to_have_text('35')
+                expect(page.locator('[data-workspace-group=next] .work-entry')).to_have_count(12)
+                expect(page.locator('[data-workspace-group=next] [data-do=workspace-more]')).to_contain_text('23 restantes')
+                page.locator('[data-workspace-group=next] [data-do=workspace-more]').click()
+                expect(page.locator('[data-workspace-group=next] .work-entry')).to_have_count(35)
+                expect(page.locator('[data-workspace-group=next] [data-do=workspace-more]')).to_have_count(0)
+                assert page.evaluate('document.documentElement.scrollWidth-document.documentElement.clientWidth') <= 2
                 # H17-03/13: prove an old note remains navigable beyond page 1.
                 with sqlite3.connect(str(Path(dirname)/'temporary-orbita.db')) as db:
                     db.executemany(

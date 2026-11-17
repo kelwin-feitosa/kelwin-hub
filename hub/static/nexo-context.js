@@ -34,6 +34,8 @@ window.KelwinNexo = (() => {
     region.textContent = 'Carregando informações vinculadas…';
     try {
       const data = await api('/api/opportunities/' + encodeURIComponent(id) + '/context');
+      // A stale request must not update the recent-context list after navigation.
+      if (!region.isConnected) return;
       remember('opportunities', id, data.opportunity.title);
       const c = data.counts;
       const rows = data.tasks.map(t => `<div class="nexo-task"><div><strong>${safe(t.title)}</strong>

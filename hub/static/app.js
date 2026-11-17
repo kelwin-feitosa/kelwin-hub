@@ -432,7 +432,23 @@ async function handleAction(button){const a=button.dataset.do,id=button.dataset.
  default:return}notify('Atualizado');await showTab(tab,activeProject&&tab==='projects'?activeProject:activeOpportunity&&tab==='opportunities'?activeOpportunity:null)}catch(error){notify(`Erro: ${error.message}`)}
 }
 window.addEventListener('DOMContentLoaded',async()=>{
- document.documentElement.dataset.theme=(()=>{try{return localStorage.getItem('kh_theme')||(window.matchMedia?.('(prefers-color-scheme: dark)').matches?'dark':'light')}catch(_){return 'light'}})();$('theme').addEventListener('click',changeTheme);$('export').addEventListener('click',async()=>{try{const data=await api('/api/export');const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='kelwin-hub-export.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);notify('Exportação pronta — proteja o arquivo privado')}catch(error){notify(error.message)}});
+ document.documentElement.dataset.theme=(()=>{try{return localStorage.getItem('kh_theme')||(window.matchMedia?.('(prefers-color-scheme: dark)').matches?'dark':'light')}catch(_){return 'light'}})();$('theme').addEventListener('click',changeTheme);$('export').addEventListener('click',async()=>{
+  if(!window.confirm('Esta exportação contém dados pessoais em JSON sem criptografia. Salvar somente em um local privado e protegido. Deseja continuar?'))return;
+  const button=$('export');if(button.disabled)return;
+  button.disabled=true;
+  try{
+   const response=await fetch('/api/export',{credentials:'same-origin',cache:'no-store'});
+   if(!response.ok)throw Error('Não foi possível exportar (HTTP '+response.status+').');
+   // Do not parse a full private JSON object and stringify it again in the UI.
+   const blob=await response.blob(),url=URL.createObjectURL(blob);
+   const anchor=document.createElement('a');
+   anchor.href=url;anchor.download='kelwin-hub-export.json';
+   document.body.append(anchor);anchor.click();anchor.remove();
+   setTimeout(()=>URL.revokeObjectURL(url),60000);
+   notify('Exportação pronta. Proteja o arquivo JSON, que não é criptografado.');
+  }catch(error){notify(error.message)}
+  finally{button.disabled=false}
+ });
  $('login-form').addEventListener('submit',async(e)=>{e.preventDefault();$('login-error').textContent='';try{await api('/api/login','POST',{password:$('password').value});await showApp()}catch(error){$('login-error').textContent=error.message}});
  $('search-open').addEventListener('click',openSearch);
  $('search-close').addEventListener('click',closeSearch);

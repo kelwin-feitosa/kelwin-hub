@@ -248,3 +248,9 @@ O Hub agora rejeita diretórios de banco graváveis por outros usuários no Linu
 Execute `python scripts/benchmark_http.py --tasks 1000 --iterations 20` para medir p50, p95 e bytes de quatro rotas em SQLite temporário com dados sintéticos. A CI registra os resultados por commit **sem limites rígidos de desempenho** (máquinas compartilhadas produzem variação). Não representa seu Pop!_OS nem medições de frontend.
 
 A matriz substituta de 15 jornadas e evidências encontra-se em `docs/HOMOLOGACAO-16-JORNADAS.md`. A versão 1.0 ainda exige avaliação humana e instalação/recuperação no computador pessoal. Os gates P0 não são automaticamente aprovados pelo benchmark.
+
+## Missão 18.1 — Notas paginadas e acesso direto
+
+A seção **Notas** utiliza `GET /api/notes/page` (páginas de 30) com total real, ordenação estável e controles de navegação. O endpoint histórico `GET /api/notes` mantém o contrato de lista e limite de 100 itens; integrações antigas não precisam migrar imediatamente. O endpoint autenticado `GET /api/notes/{id}` permite abrir/editar pelo ID, inclusive uma nota que não esteja na primeira página. Um resultado da busca global mostra a nota encontrada em destaque, sem duplicá-la no banco.
+
+Os testes cobrem 121 notas fictícias, paginação, vínculo, autorização e edição de nota antiga, com cenário Chromium em viewport móvel. Nenhum dado privado foi importado.

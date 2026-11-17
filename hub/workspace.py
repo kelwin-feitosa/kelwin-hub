@@ -36,7 +36,7 @@ def _ordering(item: dict):
 
 
 def _project_actions(db, today, capacities: dict[str, int]):
-    """One pass over the underlying cursors; O(actions × log(page-size)) memory bounded.
+    """One pass over the cursors; initial response retains at most the page size per group.
 
     Sorting by a user-visible Unicode title and local due date is intentionally
     left in Python to preserve the existing semantics of the Mesa.
@@ -135,7 +135,7 @@ def load_workspace(store, *, moment: datetime | None = None,
 def load_workspace_group(store, group: str, *, offset: int = 0, limit: int = 30,
                          moment: datetime | None = None):
     """Continue a group without materializing all actions into the response."""
-    if group not in GROUPS or not (0 <= offset <= 5000 and 1 <= limit <= 100):
+    if group not in GROUPS or not (0 <= offset <= 1_000_000 and 1 <= limit <= 100):
         raise ValueError('Grupo ou paginação inválidos')
     day, _, _ = _local_day_bounds(moment)
     with store.connection() as db:

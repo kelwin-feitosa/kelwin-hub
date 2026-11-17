@@ -26,8 +26,8 @@ def seed_large_work(store):
         for i in range(150):
             status='open' if i<130 else 'blocked' if i<140 else 'done'
             priority=3 if i<70 else 1
-            tasks.append((f'task-{i:03d}',f'Tarefa de ensaio {i:03d}',status,priority,
-                          'opp-linked' if i==0 else None))
+            tasks.append((f'task-{i:03d}',f'Tarefa de ensaio {i:03d}',
+                          'opp-linked' if i==0 else None,status,priority))
         db.executemany(
             """INSERT INTO tasks
                (id,title,project_id,opportunity_id,status,priority,due_at,next_action,

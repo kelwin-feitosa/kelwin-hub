@@ -51,3 +51,11 @@ Execute python scripts/rehearse_upgrade.py para ensaiar com dados totalmente fic
 Aviso técnico: conexões SQLite em modo read-only com WAL podem, conforme o estado dos arquivos auxiliares, interagir com estruturas de controle locais. O preflight não grava registros nem aplica migrações; deve ser executado com o Hub desligado. Não é prova de que nenhum metadado no filesystem sofrerá alteração em qualquer sistema operacional.
 
 Limites: testes automatizados e auditoria de dependências não equivalem a pentest; não integrar dados corporativos da S2 no Hub sem autorização.
+
+## Missão 18.1 — Proveniência de GitHub Actions e cobertura de auditoria
+
+As quatro workflows passam a referenciar `actions/checkout`, `actions/setup-python`, `actions/setup-node` e `actions/upload-artifact` por SHA completo de commit, resolvido em 17/11/2026 na API oficial dos respectivos repositórios `actions/*`. Os comentários mantêm a major tag de referência; para atualizar, verificar release/changelog e consultar novamente o commit exato de origem antes de modificar os SHAs. Fixar commits evita que uma tag móvel altere silenciosamente a execução; não elimina risco de dependência ou de código comprometido na origem.
+
+O workflow de dependências agora é acionado em PRs e push na `main` quando houver alteração em `pyproject.toml`, `hub/**`, `scripts/**`, `tests/**` ou `.github/workflows/**`. A política `contents: read` permanece, e os testes estáticos verificam usos `uses:` fixados, permissões e cobertura de caminhos. Isso não substitui revisão de dependências transitivas, lockfile de release ou proteção de branch. `main` ainda requer avaliação de ruleset, que **não** será alterada sem autorização administrativa específica.
+
+Os checks que são acionados por filtros de caminhos não devem ser relatados como se tivessem rodado em SHAs nos quais não foram disparados. O merge de cada PR necessita conferência de resultados relevantes no SHA específico.

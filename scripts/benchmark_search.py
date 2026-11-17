@@ -9,12 +9,13 @@ import os
 from pathlib import Path
 import sqlite3
 import statistics
+import unicodedata
 import sys
 import tempfile
 import time
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from hub.search import search
+from hub.search import search, KINDS
 
 
 from contextlib import contextmanager
@@ -30,6 +31,47 @@ class SearchStore:
         with sqlite3.connect(self.path) as db:
             db.row_factory = sqlite3.Row
             yield db
+
+
+def legacy_folded(value):
+    raw = unicodedata.normalize('NFKD', str(value or ''))
+    return ''.join(ch for ch in raw if not unicodedata.combining(ch)).casefold()
+
+
+def legacy_search(store, query, *, per_kind=8, total=40):
+    """Pre-18.2 implementation retained as a benchmark equivalence oracle."""
+    query = ' '.join(query.split())
+    if not (2 <= len(query) <= 100):
+        raise ValueError('Use entre 2 e 100 caracteres para pesquisar')
+    normalized_query = legacy_folded(query)
+    words = normalized_query.split()
+    found = []
+    truncated_by_kind = False
+    with store.connection() as db:
+        for kind_order, (kind, spec) in enumerate(KINDS.items()):
+            candidates = []
+            for row in db.execute(spec['sql']):
+                item = dict(row)
+                title = legacy_folded(item['title'])
+                title_matches = all(term in title for term in words)
+                if not title_matches:
+                    context = legacy_folded(' '.join(str(item.get(k) or '')
+                                               for k in ('detail', 'terms')))
+                    if not all(term in title or term in context for term in words):
+                        continue
+                rank = (0 if title == normalized_query else
+                        1 if title.startswith(normalized_query) else
+                        2 if title_matches else 3)
+                candidates.append((rank, title, {
+                    'id': item['id'], 'kind': kind,
+                    'label': spec['label'], 'title': item['title'],
+                    'detail': item.get('detail') or '', 'status': item['status']}))
+            candidates.sort(key=lambda row: (row[0], row[1]))
+            truncated_by_kind |= len(candidates) > per_kind
+            found.extend((rank, kind_order, item) for rank, _, item in candidates[:per_kind])
+    found.sort(key=lambda row: (row[0], row[1], legacy_folded(row[2]['title'])))
+    return {'query': query, 'results': [item for _, _, item in found[:total]],
+            'limited': truncated_by_kind or len(found) > total}
 
 
 def seed(path):
@@ -59,18 +101,28 @@ def main():
         path = os.path.join(td, 'synthetic.db')
         seed(path)
         store = SearchStore(path)
-        queries = ('musica', 'musicxml', 'projeto', 'revisao', 'ana', 'nao existe', 'Projeto Musica 42')
+        queries = ('musica', 'musicxml', 'projeto', 'revisao', 'ana',
+                   'nao existe', 'Projeto Musica 42', '100%', 'na', 'ação')
         for q in queries:
-            search(store, q)  # warmup
-        times=[]
+            expected=legacy_search(store,q)
+            assert search(store,q)==expected, ('Search semantics changed',q)
+        samples={'legacy_reference': [], 'bounded_search': []}
         for _ in range(9):
             for q in queries:
-                start = time.perf_counter()
-                search(store, q)
-                times.append((time.perf_counter() - start) * 1000)
-        print({'rows': 7000, 'queries': queries, 'results': {
-            'p50_ms': round(statistics.median(times), 2),
-            'p95_ms': round(quantile(times, .95), 2),
-            'samples': len(times)}})
+                for name,fn in (('legacy_reference',legacy_search),
+                                ('bounded_search',search)):
+                    start=time.perf_counter()
+                    result=fn(store,q)
+                    samples[name].append((time.perf_counter()-start)*1000)
+                    assert result==legacy_search(store,q), ('Mismatch',q)
+        print({'environment':'same temporary SQLite; 7000 fictional rows',
+               'queries':queries,'samples_per_approach':len(samples['bounded_search']),
+               'times_ms':{
+                   name:{'p50':round(statistics.median(values),2),
+                         'p95':round(quantile(values,.95),2)}
+                   for name,values in samples.items()},
+               'limitations':'Function-level comparison; does not measure HTTP, memory RSS, or browser paint.'})
 
-if __name__=='__main__':main()
+
+if __name__=='__main__':
+    main()

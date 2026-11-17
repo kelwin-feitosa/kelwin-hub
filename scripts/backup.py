@@ -56,6 +56,11 @@ def backup_db(source: Path, output: Path, password: str):
         snapshot = Path(t) / 'hub.db'
         with sqlite3.connect(source) as db, sqlite3.connect(snapshot) as target:
             db.backup(target)
+        # A backup larger than the accepted restore ceiling would create an
+        # encrypted file that this very application cannot restore. Detect it
+        # before buffering/compressing/encrypting the SQLite snapshot in RAM.
+        if snapshot.stat().st_size > MAX_RESTORE_DB_BYTES:
+            raise ValueError('Banco excede o limite de restauração; backup não criado')
         _valid(snapshot)
         bytes_buffer = io.BytesIO()
         with zipfile.ZipFile(bytes_buffer, 'w', compression=zipfile.ZIP_DEFLATED) as archive:

@@ -102,3 +102,28 @@ def test_backup_and_restore_reject_broken_foreign_keys(tmp_path):
     with pytest.raises(ValueError, match='chave estrangeira'):
         module.restore_db(backup, destination, PASSWORD)
     assert not destination.exists()
+
+
+def test_backup_rejects_snapshot_that_cannot_be_restored(tmp_path, monkeypatch):
+    source = tmp_path / 'oversized-synthetic.db'
+    source_db(source)
+    output = tmp_path / 'must-not-create.khb'
+    assert source.stat().st_size > 2048
+    # Simulate a smaller restore limit without allocating a huge SQLite file.
+    monkeypatch.setattr(module, 'MAX_RESTORE_DB_BYTES', 2048)
+    with pytest.raises(ValueError, match='limite de restauração'):
+        module.backup_db(source, output, PASSWORD)
+    assert not output.exists()
+
+
+def test_backup_at_restore_size_limit_keeps_khb1_compatibility(tmp_path, monkeypatch):
+    source = tmp_path / 'fits.db'
+    source_db(source)
+    monkeypatch.setattr(module, 'MAX_RESTORE_DB_BYTES', source.stat().st_size)
+    encrypted = tmp_path / 'fits.khb'
+    module.backup_db(source, encrypted, PASSWORD)
+    restored = tmp_path / 'fits-restored.db'
+    module.restore_db(encrypted, restored, PASSWORD)
+    assert restored.stat().st_size == source.stat().st_size
+    with sqlite3.connect(restored) as db:
+        assert db.execute('SELECT id FROM projects').fetchone()[0] == 'item-preservado'

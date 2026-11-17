@@ -31,6 +31,8 @@ jobs:
         run: python scripts/rehearse_upgrade.py
       - name: Synthetic HTTP latency and payload evidence (informational only)
         run: python scripts/benchmark_http.py --tasks 1000 --iterations 20
+      - name: Search equivalence and performance evidence (synthetic, informational)
+        run: python scripts/benchmark_search.py
       - name: Python and JavaScript syntax
         run: |
           python -m compileall -q hub scripts

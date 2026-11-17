@@ -1,5 +1,6 @@
 """Real-browser regression for unsaved form edits and duplicate submissions."""
 import tempfile
+import sqlite3
 from pathlib import Path
 from playwright.sync_api import sync_playwright, expect
 from browser_orbita_e2e import PASSWORD, free_port, start_server, await_ready
@@ -89,6 +90,39 @@ def run():
                 expect(page.locator('#f_estimated_minutes')).to_have_value('15')
                 page.locator('#cancel-dialog').click()
                 expect(page.locator('#dialog')).not_to_be_visible()
+                # H17-03/13: prove an old note remains navigable beyond page 1.
+                with sqlite3.connect(str(Path(dirname)/'temporary-orbita.db')) as db:
+                    db.executemany(
+                        'INSERT INTO notes (id,title,body,project_id,contact_id,opportunity_id,created_at,updated_at) VALUES (?,?,?,NULL,NULL,NULL,?,?)',
+                        [(f'note-{i:03d}',
+                          'Nota especial fora da primeira página' if i == 0 else f'Nota regular {i:03d}',
+                          'Conteúdo fictício',
+                          '2025-01-01T00:00:00+00:00',
+                          '2025-01-01T00:00:00+00:00' if i == 0 else '2026-11-17T12:00:00+00:00')
+                         for i in range(121)])
+                page.locator('#nav [data-tab=explore]').click()
+                page.locator('.orbit-explore-entry[data-tab=notes]').click()
+                expect(page.locator('[id^="notes-item-"]')).to_have_count(30)
+                expect(page.locator('nav[aria-label="Páginas de notas"]')).to_contain_text('Página 1 de 5')
+                for _ in range(4):
+                    page.locator('[data-do=note-next]').click()
+                expect(page.locator('[id^="notes-item-"]')).to_have_count(1)
+                expect(page.locator('#notes-item-note-000')).to_be_visible()
+                # A global search result points to its exact ID, not the first 100.
+                page.keyboard.press('Control+k')
+                expect(page.locator('#search-dialog')).to_be_visible()
+                page.locator('#search-query').fill('Nota especial fora da primeira página')
+                expect(page.locator('#search-results button[data-tab=notes]')).to_have_count(1)
+                page.locator('#search-results button[data-tab=notes]').click()
+                expect(page.locator('#notes-item-note-000')).to_be_visible()
+                page.locator('#notes-item-note-000 [data-do=edit-note]').click()
+                expect(page.locator('#f_title')).to_have_value('Nota especial fora da primeira página')
+                page.locator('#f_title').fill('Nota antiga realmente editada')
+                page.locator('#dynamic-form button[type=submit]').click()
+                expect(page.locator('#dialog')).not_to_be_visible()
+                note=page.request.get(host+'/api/notes/note-000').json()
+                assert note['title']=='Nota antiga realmente editada', note
+                assert page.evaluate('document.documentElement.scrollWidth-document.documentElement.clientWidth') <= 2
                 assert not errors, errors
                 browser.close()
         finally:

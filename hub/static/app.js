@@ -51,7 +51,7 @@ function badge(label,type=''){return `<span class="pill ${type}">${safe(label)}<
 async function showTab(name,focusId=null){
  tab=name;window.KelwinNav?.onPage(name);
  $('pageTitle').textContent=tabs[name];$('content').innerHTML='<p class="muted">Carregando...</p>';
- try{const render={today:todayView,tasks:tasksView,projects:projectsView,contacts:contactsView,opportunities:opportunitiesView,events:eventsView,notes:notesView,automations:automationsView,explore:window.KelwinNav.exploreView};await render[name]();if(focusId&&name==='projects')await showProjectContext(focusId);if(focusId&&name==='opportunities')await window.KelwinNexo.showOpportunityContext(focusId);if(focusId){const target=document.getElementById(`${name}-item-${focusId}`);if(target){target.scrollIntoView({block:'center',behavior:'auto'});target.tabIndex=-1;target.focus()}}}catch(error){$('content').innerHTML=panel('Não foi possível carregar',`<p>${safe(error.message)}</p>`)}
+ try{const render={today:todayView,tasks:tasksView,projects:projectsView,contacts:contactsView,opportunities:opportunitiesView,events:eventsView,notes:notesView,automations:automationsView,explore:window.KelwinNav.exploreView};await render[name](focusId);if(focusId&&name==='projects')await showProjectContext(focusId);if(focusId&&name==='opportunities')await window.KelwinNexo.showOpportunityContext(focusId);if(focusId){const target=document.getElementById(`${name}-item-${focusId}`);if(target){target.scrollIntoView({block:'center',behavior:'auto'});target.tabIndex=-1;target.focus()}}}catch(error){$('content').innerHTML=panel('Não foi possível carregar',`<p>${safe(error.message)}</p>`)}
 }
 // The Mesa is a contextual projection, not another owner of tasks or opportunities.
 function workRow(item){
@@ -197,9 +197,42 @@ async function tasksView(){
   <button class="primary" data-do="add-task">+ Nova tarefa</button></div>
   ${filters}${panel('Tarefas',data.items.length?`<div class="list">${content}</div>`:blank('Nenhuma tarefa encontrada para os filtros selecionados.'))}${pager}`;
 }
-async function notesView(){
- const notes=await api('/api/notes');
- $('content').innerHTML=`<div class="section-head"><p class="muted">Informações que merecem contexto, mas ainda não são tarefas.</p><button type="button" class="primary" data-do="add-note">+ Nova nota</button></div>${panel('Notas do Hub',notes.length?`<div class="list">${notes.map(n=>`<article id="notes-item-${safe(n.id)}" class="item"><div class="item-info"><strong>${safe(n.title)}</strong><small>${safe(n.body.slice(0,180))}</small><small>Atualizada ${dateTime(n.updated_at)}</small></div><button type="button" class="mini" data-do="edit-note" data-id="${safe(n.id)}">Editar</button></article>`).join('')}</div>`:blank('Ainda não há notas. Registre uma ideia para começar.'))}`;
+let notesPage=0,notesRenderSequence=0;
+const NOTES_PAGE_SIZE=30;
+function noteRow(note,sourceLabel=''){
+ return `<article id="notes-item-${safe(note.id)}" class="item">
+   <div class="item-info"><strong>${safe(note.title)}</strong>
+     ${sourceLabel?`<small>${safe(sourceLabel)}</small>`:''}
+     <small>${safe(note.body.slice(0,180))}</small>
+     <small>Atualizada ${dateTime(note.updated_at)}</small></div>
+   <button type="button" class="mini" data-do="edit-note" data-id="${safe(note.id)}">Editar</button>
+ </article>`;
+}
+async function notesView(focusId=null){
+ const requestId=++notesRenderSequence;
+ const offset=notesPage*NOTES_PAGE_SIZE;
+ const query=new URLSearchParams({limit:String(NOTES_PAGE_SIZE),offset:String(offset)});
+ const [data,selected]=await Promise.all([
+   api('/api/notes/page?'+query.toString()),
+   focusId?api('/api/notes/'+encodeURIComponent(focusId)):Promise.resolve(null)
+ ]);
+ if(requestId!==notesRenderSequence||tab!=='notes')return;
+ if(data.total>0&&!data.items.length&&notesPage>0){notesPage=0;await notesView(focusId);return}
+ const totalPages=Math.max(1,Math.ceil(data.total/NOTES_PAGE_SIZE));
+ const list=data.items.map(n=>noteRow(n)).join('');
+ const special=selected&&!data.items.some(n=>n.id===selected.id)?
+   panel('Nota encontrada',`<div class="list">${noteRow(selected,'Localizada pela busca global')}</div>`):'';
+ const pager=`<nav class="task-pagination" aria-label="Páginas de notas">
+  <button class="mini" type="button" data-do="note-prev" ${notesPage===0?'disabled':''}>Anterior</button>
+  <span>Página ${notesPage+1} de ${totalPages} · ${data.total} nota(s)</span>
+  <button class="mini" type="button" data-do="note-next" ${!data.has_more?'disabled':''}>Próxima</button>
+ </nav>`;
+ $('content').innerHTML=`<div class="section-head">
+   <p class="muted">Informações que merecem contexto, mas ainda não são tarefas.</p>
+   <button type="button" class="primary" data-do="add-note">+ Nova nota</button></div>
+   ${special}
+   ${panel('Notas do Hub',data.items.length?`<div class="list">${list}</div>`:blank('Nenhuma nota nesta página.'))}
+   ${pager}`;
 }
 let eventWindow='week';
 async function eventsView(){
@@ -272,7 +305,7 @@ async function addNote(projectId=null,opportunityId=null){
  projectId?()=>showTab('projects',projectId):opportunityId?()=>showTab('opportunities',opportunityId):null);
 }
 async function editNote(id){
- const note=(await api('/api/notes')).find(x=>x.id===id);if(!note)throw Error('Nota não encontrada');
+ const note=await api('/api/notes/'+encodeURIComponent(id));
  openDialog('Editar nota',[{...field('title','Título'),value:note.title},
  {key:'body',label:'Conteúdo',type:'textarea',required:true,value:note.body}],x=>api(`/api/notes/${id}`,'PATCH',x));
 }
@@ -334,7 +367,7 @@ async function editEvent(id){const item=(await api('/api/events')).find(x=>x.id=
  x=>api(`/api/events/${id}`,'PATCH',x))}
 
 async function handleAction(button){const a=button.dataset.do,id=button.dataset.id;const parentRegion=button.closest('.project-context');const activeProject=parentRegion?.id.replace('project-context-','');const activeOpportunity=button.closest('.nexo-opportunity')?.id.replace('opportunity-context-','');
- try{switch(a){case'add-contact':await addContact();return;case'add-note':await addNote();return;case'add-project-note':await addNote(id);return;case'add-opportunity-note':await addNote(null,id);return;case'edit-note':await editNote(id);return;case'add-project':await addProject();return;case'add-opportunity':await addOpportunity();return;case'add-task':await addTask(null);return;case'add-linked-task':await addTask(id);return;case'add-project-task':await addTask(null,id);return;case'project-context':await showProjectContext(id);return;case'opportunity-context':await window.KelwinNexo.showOpportunityContext(id);return;case'review-transcript':await window.KelwinReview.open(id);return;case'add-project-event':await addEvent(id);return;case'add-event':await addEvent();return;case'availability-open':await window.KelwinAvailability.open();return;case'event-transcripts':await showEventTranscripts(id);return;case'import-transcript':await importTranscript(id);return;case'view-transcript':await readTranscript(id,button.dataset.event);return;case'review-transcript':await window.KelwinReview.open(id);return;case'event-window':eventWindow=button.dataset.value;await eventsView();document.querySelector(`[data-do="event-window"][data-value="${eventWindow}"]`)?.focus();return;case'edit-project':await editProject(id);return;case'edit-contact':await editContact(id);return;case'edit-opportunity':await editOpportunity(id);return;case'task-prev':taskPage=Math.max(0,taskPage-1);await tasksView();return;case'task-next':taskPage++;await tasksView();return;case'task-clear':taskPage=0;taskStatus='all';taskQuery='';await tasksView();return;case'edit-task':await editTask(id);return;case'edit-event':await editEvent(id);return;
+ try{switch(a){case'add-contact':await addContact();return;case'add-note':await addNote();return;case'add-project-note':await addNote(id);return;case'add-opportunity-note':await addNote(null,id);return;case'edit-note':await editNote(id);return;case'add-project':await addProject();return;case'add-opportunity':await addOpportunity();return;case'add-task':await addTask(null);return;case'add-linked-task':await addTask(id);return;case'add-project-task':await addTask(null,id);return;case'project-context':await showProjectContext(id);return;case'opportunity-context':await window.KelwinNexo.showOpportunityContext(id);return;case'review-transcript':await window.KelwinReview.open(id);return;case'add-project-event':await addEvent(id);return;case'add-event':await addEvent();return;case'availability-open':await window.KelwinAvailability.open();return;case'event-transcripts':await showEventTranscripts(id);return;case'import-transcript':await importTranscript(id);return;case'view-transcript':await readTranscript(id,button.dataset.event);return;case'review-transcript':await window.KelwinReview.open(id);return;case'event-window':eventWindow=button.dataset.value;await eventsView();document.querySelector(`[data-do="event-window"][data-value="${eventWindow}"]`)?.focus();return;case'edit-project':await editProject(id);return;case'edit-contact':await editContact(id);return;case'edit-opportunity':await editOpportunity(id);return;case'note-prev':notesPage=Math.max(0,notesPage-1);await notesView();return;case'note-next':notesPage++;await notesView();return;case'task-prev':taskPage=Math.max(0,taskPage-1);await tasksView();return;case'task-next':taskPage++;await tasksView();return;case'task-clear':taskPage=0;taskStatus='all';taskQuery='';await tasksView();return;case'edit-task':await editTask(id);return;case'edit-event':await editEvent(id);return;
  case'open-task':await showTab('tasks',id);return;case'open-project':await showTab('projects',id);return;case'open-opportunity':await showTab('opportunities',id);return;case'open-events':await showTab('events');return;
  case'complete':await api(`/api/tasks/${id}`,'PATCH',{status:'done'});break;
  case'contacted':await api(`/api/opportunities/${id}/contact`,'POST',{});break;

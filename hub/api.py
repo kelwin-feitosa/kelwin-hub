@@ -637,6 +637,36 @@ def create_app(database_path: str | None = None, *, password_hash: str | None = 
         with store.connection() as db:
             return rows(db.execute(sql,(*params,limit,offset)))
 
+    @app.get('/api/notes/page')
+    def notes_page(project_id: str | None = None, contact_id: str | None = None,
+                   opportunity_id: str | None = None,
+                   limit: int = Query(30, ge=1, le=100),
+                   offset: int = Query(0, ge=0, le=100_000),
+                   _=Depends(require_login)):
+        """Bounded page and true count, without changing the legacy /api/notes list."""
+        conditions=[]; params=[]
+        for field, ident in (('project_id',project_id),('contact_id',contact_id),
+                             ('opportunity_id',opportunity_id)):
+            if ident is not None:
+                conditions.append(f'{field}=?')
+                params.append(ident)
+        where=(' WHERE '+' AND '.join(conditions)) if conditions else ''
+        with store.connection() as db:
+            total=db.execute('SELECT COUNT(*) FROM notes'+where, params).fetchone()[0]
+            items=rows(db.execute('SELECT * FROM notes'+where+
+                ' ORDER BY updated_at DESC, id DESC LIMIT ? OFFSET ?',
+                (*params,limit,offset)))
+        return {'items':items,'total':total,'limit':limit,'offset':offset,
+                'has_more':offset+len(items)<total}
+
+    @app.get('/api/notes/{ident}')
+    def get_note(ident: str,_=Depends(require_login)):
+        with store.connection() as db:
+            item=db.execute('SELECT * FROM notes WHERE id=?',(ident,)).fetchone()
+            if item is None:
+                raise HTTPException(404,'Nota não encontrada')
+            return dict(item)
+
     @app.post('/api/notes',status_code=201)
     def add_note(data: NoteIn,_=Depends(require_login)):
         ident=new_id(); now=now_utc()

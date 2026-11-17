@@ -123,6 +123,35 @@ def run():
                 note=page.request.get(host+'/api/notes/note-000').json()
                 assert note['title']=='Nota antiga realmente editada', note
                 assert page.evaluate('document.documentElement.scrollWidth-document.documentElement.clientWidth') <= 2
+                # H17-04: delayed success from a previous tab must never replace Explorar.
+                page.evaluate("""() => {
+                  const real = window.fetch.bind(window);
+                  window.__originalFetch18 = real;
+                  window.fetch = (input,opts) => {
+                    if (String(input) !== '/api/projects') return real(input,opts);
+                    return new Promise((resolve,reject) => {
+                      window.__releaseProjects18=()=>real(input,opts).then(resolve,reject);
+                      window.__rejectProjects18=()=>reject(new Error('Network test failure'));
+                    });
+                  };
+                }""")
+                page.locator('#nav [data-tab=projects]').click()
+                page.wait_for_function('typeof window.__releaseProjects18 === "function"')
+                page.locator('#nav [data-tab=explore]').click()
+                expect(page.locator('.orbit-explore-entry')).to_have_count(8)
+                page.evaluate('window.__releaseProjects18()')
+                page.wait_for_timeout(250)
+                expect(page.locator('#pageTitle')).to_have_text('Explorar')
+                expect(page.locator('.orbit-explore-entry')).to_have_count(8)
+                # A delayed error from another tab must not create an error page.
+                page.locator('#nav [data-tab=projects]').click()
+                page.wait_for_function('typeof window.__rejectProjects18 === "function"')
+                page.locator('#nav [data-tab=explore]').click()
+                page.evaluate('window.__rejectProjects18()')
+                page.wait_for_timeout(250)
+                expect(page.locator('#pageTitle')).to_have_text('Explorar')
+                expect(page.locator('.orbit-explore-entry')).to_have_count(8)
+                page.evaluate('window.fetch=window.__originalFetch18')
                 assert not errors, errors
                 browser.close()
         finally:

@@ -28,6 +28,7 @@ from .nexo_context import load_opportunity_context
 from .nexo_insights import load_suggestions
 from .opportunity_board import load_board
 from .transcripts import validate_text, segments, MAX_TRANSCRIPT_BYTES
+from .body_limits import BodyLimitMiddleware
 
 LOG = logging.getLogger(__name__)
 STATIC = Path(__file__).parent / 'static'
@@ -260,6 +261,9 @@ def create_app(database_path: str | None = None, *, password_hash: str | None = 
                     pass
 
     app = FastAPI(title='Kelwin Hub piloto', version='0.1.0', lifespan=lifespan, docs_url=None, redoc_url=None)
+    # Bound write bodies before FastAPI/Pydantic JSON parsing. TrustedHost is
+    # added afterwards so it still executes before this middleware.
+    app.add_middleware(BodyLimitMiddleware)
     # Reject DNS-rebinding and unexpected Host headers before any routes.
     # 'hub' is Docker Compose, and 'testserver' is FastAPI's TestClient.
     app.add_middleware(

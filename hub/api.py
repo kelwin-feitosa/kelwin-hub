@@ -373,7 +373,7 @@ def create_app(database_path: str | None = None, *, password_hash: str | None = 
         return load_workspace(store, per_group=per_group)
 
     @app.get('/api/workspace/groups/{group}')
-    def workspace_group(group: str, offset: int = Query(0, ge=0, le=5000),
+    def workspace_group(group: str, offset: int = Query(0, ge=0, le=1_000_000),
                         limit: int = Query(30, ge=1, le=100),
                         _=Depends(require_login)):
         try:

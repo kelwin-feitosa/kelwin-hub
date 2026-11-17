@@ -254,3 +254,9 @@ A matriz substituta de 15 jornadas e evidências encontra-se em `docs/HOMOLOGACA
 A seção **Notas** utiliza `GET /api/notes/page` (páginas de 30) com total real, ordenação estável e controles de navegação. O endpoint histórico `GET /api/notes` mantém o contrato de lista e limite de 100 itens; integrações antigas não precisam migrar imediatamente. O endpoint autenticado `GET /api/notes/{id}` permite abrir/editar pelo ID, inclusive uma nota que não esteja na primeira página. Um resultado da busca global mostra a nota encontrada em destaque, sem duplicá-la no banco.
 
 Os testes cobrem 121 notas fictícias, paginação, vínculo, autorização e edição de nota antiga, com cenário Chromium em viewport móvel. Nenhum dado privado foi importado.
+
+## Missão 18.1 — navegação segura contra respostas atrasadas
+
+As visualizações de Mesa, Projetos, Contatos, Oportunidades, Tarefas, Notas, Agenda e Automações verificam um contador global de navegação antes de substituir o conteúdo. Uma resposta ou erro de uma tela abandonada não pode sobrescrever a tela atual, inclusive quando o usuário volta rapidamente à mesma seção. Os contextos carregados em paralelo ignoram regiões já removidas da interface.
+
+O E2E Chromium atrasa deliberadamente a resposta de Projetos, navega para Explorar e solta tanto uma resposta bem-sucedida quanto uma falha: o catálogo permanece intacto. Nenhuma alteração no SQLite, autenticação, cookies ou navegação persistida em URL.

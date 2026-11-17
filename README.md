@@ -270,3 +270,9 @@ A Mesa passa a devolver um conjunto inicial limitado de até **12 ações por gr
 - A projeção continua **somente leitura**, utiliza os dados originais e não importa informações profissionais externas. Testes cobrem contagem exata, deduplicação, páginas completas e navegação móvel.
 
 **Trade-off:** as consultas ainda percorrem os registros elegíveis para manter agrupamentos por data local e ordenação Unicode idênticos. A memória do carregamento inicial e o tráfego JSON diminuem; páginas muito profundas podem exigir memória proporcional à posição. Não anunciar redução proporcional de CPU ou latência sem benchmark equivalente. Os testes não comprovam o desempenho no Pop!_OS pessoal.
+
+## Missão 18.2 — Busca global com retenção limitada de resultados (H17-02)
+
+A busca mantém a mesma semântica de resultados, ordenação, ranking, Unicode e substrings; o algoritmo agora percorre o cursor SQLite sem construir um dicionário para cada registro não correspondente e mantém no máximo os `per_kind` melhores resultados por tipo em um heap (por padrão, oito). A normalização de textos ASCII usa um caminho rápido equivalente a NFKD + `casefold`. Não foram criados índices persistentes, migrações, serviços externos ou novas dependências.
+
+**Verificação diferencial:** `tests/test_search_equivalence.py` compara diretamente a saída do algoritmo anterior, preservado em `scripts/benchmark_search.py`, à nova implementação para termos com acentos, substrings, combinações e caracteres especiais. O script também executa benchmarks com os mesmos 7.000 registros fictícios e as mesmas consultas, medindo p50/p95 **de funções Python**, sem extrapolar para navegador ou carga HTTP. O benefício esperado é principalmente reduzir alocações de memória em pesquisas com muitos resultados; otimizações adicionais de tempo e FTS5 exigem equivalência e ganho medidos antes da adoção.

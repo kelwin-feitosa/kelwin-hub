@@ -4,6 +4,7 @@ from datetime import datetime, timezone, timedelta
 from decimal import Decimal
 import asyncio
 import hmac
+import json
 import logging
 import os
 import re
@@ -13,7 +14,7 @@ import time
 from zoneinfo import ZoneInfo
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -890,13 +891,37 @@ def create_app(database_path: str | None = None, *, password_hash: str | None = 
 
     @app.get('/api/export')
     def export_owned_data(_=Depends(require_login)):
-        allowed=('projects','contacts','opportunities','tasks','events','notes','meeting_transcripts','meeting_analyses','meeting_suggestions','automation_configs','automation_runs','alerts','audit')
-        with store.connection() as db:
-            result={'version':1,'generated_at':now_utc(),
+        """Authenticated plaintext JSON export, streamed from one SQLite snapshot."""
+        allowed=('projects','contacts','opportunities','tasks','events','notes',
+                 'meeting_transcripts','meeting_analyses','meeting_suggestions',
+                 'automation_configs','automation_runs','alerts','audit')
+
+        async def json_fragments():
+            header={'version':1,'generated_at':now_utc(),
                     'warning':'Contém informações privadas. Armazene em local protegido.'}
-            for table in allowed:
-                result[table]=rows(db.execute(f'SELECT * FROM {table}'))
-        return JSONResponse(result,headers={'Content-Disposition':'attachment; filename="kelwin-hub-export.json"'})
+            json_kwargs={'ensure_ascii':False,'allow_nan':False,'separators':(',',':')}
+            yield json.dumps(header,**json_kwargs)[:-1].encode('utf-8')
+            # One read transaction keeps every exported table in the same SQLite
+            # snapshot even if another local action writes while exporting.
+            with store.connection() as db:
+                db.execute('BEGIN')
+                try:
+                    for table in allowed:  # fixed whitelist, never user input
+                        yield (','+json.dumps(table)+':[').encode('utf-8')
+                        first=True
+                        for row in db.execute(f'SELECT * FROM {table}'):
+                            if not first:
+                                yield b','
+                            yield json.dumps(dict(row),**json_kwargs).encode('utf-8')
+                            first=False
+                        yield b']'
+                finally:
+                    db.execute('ROLLBACK')  # end read-only snapshot
+            yield b'}'
+
+        return StreamingResponse(json_fragments(),media_type='application/json',
+            headers={'Content-Disposition':'attachment; filename="kelwin-hub-export.json"',
+                     'Cache-Control':'no-store'})
 
     @app.get('/api/audit')
     def audit(_=Depends(require_login)):

@@ -23,6 +23,23 @@ def run():
                 page.locator('#login-form button[type=submit]').click()
                 expect(page.locator('#shell')).to_be_visible()
 
+                # The export action is in the desktop header; mobile hides it.
+                page.set_viewport_size({'width': 1366, 'height': 844})
+                expect(page.locator('#export')).to_be_visible()
+                # H17-10: explicit warning before private, unencrypted JSON export.
+                export_requests=[]
+                page.on('request', lambda req: export_requests.append(req.url)
+                        if req.url.endswith('/api/export') else None)
+                page.once('dialog', lambda dialog: dialog.dismiss())
+                page.locator('#export').click()
+                assert not export_requests, 'Declined export must never fetch private data'
+                page.once('dialog', lambda dialog: dialog.accept())
+                with page.expect_download() as download_info:
+                    page.locator('#export').click()
+                assert download_info.value.suggested_filename=='kelwin-hub-export.json'
+                assert len(export_requests)==1, export_requests
+                page.set_viewport_size({'width': 390, 'height': 844})
+
                 def open_project_form():
                     page.locator('#create-open').click()
                     expect(page.locator('#search-dialog')).to_be_visible()

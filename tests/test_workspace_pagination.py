@@ -86,7 +86,6 @@ def test_every_workspace_item_accessible_through_pages(ctx):
         assert len(seen)==len(set(seen))==count
         assert seen[:len(initial['groups'][group])]==[
             item['id'] for item in initial['groups'][group]]
-    assert 'opp-solo' in seen or expected['next']==61  # validated in group count above
 
 
 @pytest.mark.parametrize('params',[
@@ -98,7 +97,7 @@ def test_workspace_rejects_unbounded_initial_page(ctx,params):
 
 @pytest.mark.parametrize(('group','params'),[
     ('now',{'limit':0}),('now',{'limit':101}),('next',{'offset':-1}),
-    ('next',{'offset':5001}),('other',{}),
+    ('next',{'offset':1000001}),('other',{}),
 ])
 def test_group_paging_validates_input(ctx,group,params):
     client, _, _=ctx

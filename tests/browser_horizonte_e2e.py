@@ -144,6 +144,7 @@ def run():
                 expect(page.locator('#pageTitle')).to_have_text('Explorar')
                 expect(page.locator('.orbit-explore-entry')).to_have_count(8)
                 # A delayed error from another tab must not create an error page.
+                page.evaluate('window.__rejectProjects18=null')
                 page.locator('#nav [data-tab=projects]').click()
                 page.wait_for_function('typeof window.__rejectProjects18 === "function"')
                 page.locator('#nav [data-tab=explore]').click()

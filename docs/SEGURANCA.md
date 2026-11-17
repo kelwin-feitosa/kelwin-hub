@@ -59,3 +59,11 @@ As quatro workflows passam a referenciar `actions/checkout`, `actions/setup-pyth
 O workflow de dependências agora é acionado em PRs e push na `main` quando houver alteração em `pyproject.toml`, `hub/**`, `scripts/**`, `tests/**` ou `.github/workflows/**`. A política `contents: read` permanece, e os testes estáticos verificam usos `uses:` fixados, permissões e cobertura de caminhos. Isso não substitui revisão de dependências transitivas, lockfile de release ou proteção de branch. `main` ainda requer avaliação de ruleset, que **não** será alterada sem autorização administrativa específica.
 
 Os checks que são acionados por filtros de caminhos não devem ser relatados como se tivessem rodado em SHAs nos quais não foram disparados. O merge de cada PR necessita conferência de resultados relevantes no SHA específico.
+
+## Missão 18.1 — limite bruto de requisições HTTP (H17-08)
+
+O middleware ASGI `hub/body_limits.py` limita corpos de métodos que podem gravar (POST/PATCH/PUT/DELETE) **antes do parsing JSON**. Limite padrão: **512 KiB**; importação JSON de transcrição e análise de reunião: **2 MiB**, compatível com caracteres Unicode escapados e com os limites menores definidos na validação dos modelos. `Content-Length` excessivo é rejeitado imediatamente, mas corpos sem tamanho declarado ou enviados em chunks também são contados antes da entrega à aplicação. Erros respondem 400 (tamanho declarado inválido) ou 413 (corpo excessivo). Payloads legítimos são reencaminhados integralmente para o FastAPI.
+
+**Trade-off explícito:** como o Hub não possui endpoints de upload em streaming, o corpo aceito é armazenado temporariamente em memória **até o teto definido** para reapresentação correta ao parser. Esse limite protege contra acúmulo descontrolado por corpo, mas não substitui limite de taxa, limites de conexões simultâneas, timeouts do servidor, cotas de disco nem o isolamento em loopback. Antes de criar streaming upload, revisar o contrato desse middleware; não anunciar proteção completa contra DoS.
+
+Os testes cobrem Content-Length malformado/duplicado, chunked sem Content-Length, replay, erro 413 sem escrita no SQLite e importação Unicode válida. Não há telemetria ou serviço externo.

@@ -48,10 +48,29 @@ function closeSearch(){
 function panel(title,body,other=''){return `<section class="panel"><div class="section-head"><h2>${safe(title)}</h2>${other}</div>${body}</section>`}
 function blank(label){return `<p class="blank">${safe(label)}</p>`}
 function badge(label,type=''){return `<span class="pill ${type}">${safe(label)}</span>`}
+let navigationSequence=0;
+const isCurrentNavigation=(name,token)=>tab===name&&token===navigationSequence;
 async function showTab(name,focusId=null){
+ const navToken=++navigationSequence;
  tab=name;window.KelwinNav?.onPage(name);
  $('pageTitle').textContent=tabs[name];$('content').innerHTML='<p class="muted">Carregando...</p>';
- try{const render={today:todayView,tasks:tasksView,projects:projectsView,contacts:contactsView,opportunities:opportunitiesView,events:eventsView,notes:notesView,automations:automationsView,explore:window.KelwinNav.exploreView};await render[name](focusId);if(focusId&&name==='projects')await showProjectContext(focusId);if(focusId&&name==='opportunities')await window.KelwinNexo.showOpportunityContext(focusId);if(focusId){const target=document.getElementById(`${name}-item-${focusId}`);if(target){target.scrollIntoView({block:'center',behavior:'auto'});target.tabIndex=-1;target.focus()}}}catch(error){$('content').innerHTML=panel('Não foi possível carregar',`<p>${safe(error.message)}</p>`)}
+ try{
+  const render={today:todayView,tasks:tasksView,projects:projectsView,contacts:contactsView,
+    opportunities:opportunitiesView,events:eventsView,notes:notesView,
+    automations:automationsView,explore:window.KelwinNav.exploreView};
+  await render[name](focusId);
+  if(!isCurrentNavigation(name,navToken))return;
+  if(focusId&&name==='projects')await showProjectContext(focusId);
+  if(focusId&&name==='opportunities')await window.KelwinNexo.showOpportunityContext(focusId);
+  if(!isCurrentNavigation(name,navToken))return;
+  if(focusId){
+   const target=document.getElementById(`${name}-item-${focusId}`);
+   if(target){target.scrollIntoView({block:'center',behavior:'auto'});target.tabIndex=-1;target.focus()}
+  }
+ }catch(error){
+  if(!isCurrentNavigation(name,navToken))return;
+  $('content').innerHTML=panel('Não foi possível carregar',`<p>${safe(error.message)}</p>`);
+ }
 }
 // The Mesa is a contextual projection, not another owner of tasks or opportunities.
 function workRow(item){
@@ -71,7 +90,9 @@ function workSection(title,description,items,empty){
  return `<section class="work-section" aria-label="${safe(title)}"><header class="work-section-heading"><div><h3>${safe(title)}</h3><p>${safe(description)}</p></div><span class="work-counter" aria-label="${items.length} itens">${items.length}</span></header>${items.length?items.map(workRow).join(''):`<p class="work-empty">${safe(empty)}</p>`}</section>`;
 }
 async function todayView(){
+ const navToken=navigationSequence;
  const [data,projects,suggestions]=await Promise.all([api('/api/workspace'),api('/api/projects'),api('/api/nexo/suggestions')]);
+ if(!isCurrentNavigation('today',navToken))return;
  const pending=data.groups;
  const agenda=data.events.length?data.events.map(e=>`<div class="work-compact"><strong>${safe(e.title)}</strong><small>${dateTime(e.start_at)} · ${e.status==='confirmed'?'Confirmado':'Proposto (não confirmado)'}</small></div>`).join(''):blank('Nenhum compromisso local hoje.');
  const alerts=data.alerts.length?data.alerts.map(a=>`<div class="work-compact"><strong>${safe(a.title)}</strong><small>Alerta local · ${dateTime(a.created_at)}</small><button type="button" class="text-action" data-do="dismiss" data-id="${safe(a.id)}">Dispensar alerta</button></div>`).join(''):blank('Nenhum alerta pendente.');
@@ -119,7 +140,7 @@ async function quickCapture(form){
   notify('Ação adicionada');await showTab('today');$('quick-title')?.focus();
  }catch(err){error.textContent=err.message;button.disabled=false}
 }
-async function projectsView(){const data=await api('/api/projects');$('content').innerHTML=`<div class="section-head"><p class="muted">Separe seus projetos por área, sem duplicar issues do GitHub.</p><button class="primary" data-do="add-project">+ Novo projeto</button></div>${panel('Meus projetos',data.length?`<div class="list">${data.map(x=>`<div id="projects-item-${safe(x.id)}" class="item"><div class="item-info"><strong>${safe(x.name)}</strong><small>${safe(x.area)} · criado ${dateTime(x.created_at)}</small></div>${badge(x.status)}<button class="mini" data-do="project-context" data-id="${safe(x.id)}" aria-expanded="false" aria-controls="project-context-${safe(x.id)}">Contexto</button><button class="mini" data-do="edit-project" data-id="${safe(x.id)}">Editar</button></div><div class="project-context" id="project-context-${safe(x.id)}" hidden></div>`).join('')}</div>`:blank('Nenhum projeto cadastrado.'))}`}
+async function projectsView(){const navToken=navigationSequence;const data=await api('/api/projects');if(!isCurrentNavigation('projects',navToken))return;$('content').innerHTML=`<div class="section-head"><p class="muted">Separe seus projetos por área, sem duplicar issues do GitHub.</p><button class="primary" data-do="add-project">+ Novo projeto</button></div>${panel('Meus projetos',data.length?`<div class="list">${data.map(x=>`<div id="projects-item-${safe(x.id)}" class="item"><div class="item-info"><strong>${safe(x.name)}</strong><small>${safe(x.area)} · criado ${dateTime(x.created_at)}</small></div>${badge(x.status)}<button class="mini" data-do="project-context" data-id="${safe(x.id)}" aria-expanded="false" aria-controls="project-context-${safe(x.id)}">Contexto</button><button class="mini" data-do="edit-project" data-id="${safe(x.id)}">Editar</button></div><div class="project-context" id="project-context-${safe(x.id)}" hidden></div>`).join('')}</div>`:blank('Nenhum projeto cadastrado.'))}`}
 async function showProjectContext(id){
  const region=document.getElementById(`project-context-${id}`);
  if(!region)return;
@@ -129,6 +150,7 @@ async function showProjectContext(id){
  region.textContent='Carregando contexto…';
  try{
   const data=await api('/api/projects/'+encodeURIComponent(id)+'/context');
+  if(!region.isConnected||tab!=='projects')return;
   const linkedNotes=data.notes,activity=data.recent_activity,relatedEvents=data.events;
   window.KelwinNexo?.remember('projects',id,data.project.name);
   const c=data.counts;
@@ -137,7 +159,7 @@ async function showProjectContext(id){
   region.innerHTML=`<div class="project-context-head"><div><h3>Dentro deste projeto</h3><p>${safe(overview)}</p>${data.next_task?`<p>Próxima tarefa: <strong>${safe(data.next_task.title)}</strong></p>`:''}</div><button type="button" class="primary" data-do="add-project-task" data-id="${safe(id)}">+ Tarefa neste projeto</button><button type="button" class="mini" data-do="add-project-event" data-id="${safe(id)}">+ Compromisso</button></div><div class="project-task-list">${taskRows||'<p class="muted">Nenhuma tarefa vinculada ainda.</p>'}</div><div class="context-extra"><h4>Notas <button class="mini" type="button" data-do="add-project-note" data-id="${safe(id)}">+ Nota</button></h4>${linkedNotes.slice(0,8).map(n=>`<p><strong>${safe(n.title)}</strong> — ${safe(n.body.slice(0,140))}</p>`).join('')||'<p class="muted">Sem notas ainda.</p>'}<h4>Compromissos</h4>${relatedEvents.map(e=>`<p>${safe(e.title)} · ${dateTime(e.start_at)} · ${safe(e.status)}</p>`).join('')||'<p class="muted">Sem compromissos vinculados.</p>'}<h4>Atividades registradas</h4>${activity.slice(0,8).map(a=>`<p><span class="muted">${dateTime(a.at)}</span> · ${safe(a.kind)} · ${safe(a.action)}</p>`).join('')||'<p class="muted">Sem ações registradas.</p>'}</div>`;
  }catch(error){region.textContent='Falha ao consultar projeto: '+error.message}
 }
-async function contactsView(){const data=await api('/api/contacts');$('content').innerHTML=`<div class="section-head"><p class="muted">Pessoas com quem você se relaciona profissionalmente.</p><button class="primary" data-do="add-contact">+ Novo contato</button></div>${panel('Lista de contatos',data.length?`<div class="list">${data.map(x=>`<div id="contacts-item-${safe(x.id)}" class="item"><div class="item-info"><strong>${safe(x.name)}</strong><small>${safe(x.company||'Sem empresa')} · ${safe(x.email||'Sem e-mail')}</small></div>${badge(x.category)}<button class="mini" data-do="edit-contact" data-id="${safe(x.id)}">Editar</button></div>`).join('')}</div>`:blank('Comece cadastrando um contato fictício para testar.'))}`}
+async function contactsView(){const navToken=navigationSequence;const data=await api('/api/contacts');if(!isCurrentNavigation('contacts',navToken))return;$('content').innerHTML=`<div class="section-head"><p class="muted">Pessoas com quem você se relaciona profissionalmente.</p><button class="primary" data-do="add-contact">+ Novo contato</button></div>${panel('Lista de contatos',data.length?`<div class="list">${data.map(x=>`<div id="contacts-item-${safe(x.id)}" class="item"><div class="item-info"><strong>${safe(x.name)}</strong><small>${safe(x.company||'Sem empresa')} · ${safe(x.email||'Sem e-mail')}</small></div>${badge(x.category)}<button class="mini" data-do="edit-contact" data-id="${safe(x.id)}">Editar</button></div>`).join('')}</div>`:blank('Comece cadastrando um contato fictício para testar.'))}`}
 function opportunityRow(x){
  const when=x.followup_at?'Retorno: '+dateTime(x.followup_at):'Sem prazo de retorno';
  return `<article id="opportunities-item-${safe(x.id)}" class="opportunity-entry"><div class="opportunity-content"><div class="work-meta"><span>${safe(x.contact_name)}</span><span>·</span><span>${safe(x.kind)}</span><span>·</span>${badge(x.status)}</div><h3>${safe(x.title)}</h3><p>Próxima ação: ${safe(x.next_action)}</p><small>${when}</small></div><div class="row-actions"><button class="mini" data-do="opportunity-context" data-id="${safe(x.id)}" aria-controls="opportunity-context-${safe(x.id)}" aria-expanded="false">Contexto</button><button class="mini" data-do="edit-opportunity" data-id="${safe(x.id)}">Editar</button>${!['won','lost','archived'].includes(x.status)?`<button class="mini" data-do="add-linked-task" data-id="${safe(x.id)}">Criar tarefa</button><button class="mini" data-do="contacted" data-id="${safe(x.id)}">Registrar contato</button>`:''}</div></article><section class="nexo-opportunity" id="opportunity-context-${safe(x.id)}" hidden aria-label="Informações da oportunidade"></section>`;
@@ -156,7 +178,9 @@ function renderOpportunityBoard(board){
  $('opp-count').textContent=shown+' resultado(s)';
 }
 async function opportunitiesView(){
+ const navToken=navigationSequence;
  const board=await api('/api/opportunities/board');
+ if(!isCurrentNavigation('opportunities',navToken))return;
  $('content').innerHTML=`<div class="section-head"><p class="muted">Retornos por prazo e situação, com próximos passos explícitos.</p><button class="primary" data-do="add-opportunity">+ Nova oportunidade</button></div><div class="opportunity-filters"><label for="opp-filter-kind">Categoria<select id="opp-filter-kind"><option value="">Todas</option><option value="service">Serviços</option><option value="job">Candidaturas</option><option value="music">Música</option><option value="other">Outras</option></select></label><label for="opp-filter-status">Situação<select id="opp-filter-status"><option value="">Todas</option><option value="new">Nova</option><option value="active">Ativa</option><option value="waiting">Aguardando</option><option value="won">Ganha</option><option value="lost">Perdida</option><option value="archived">Arquivada</option></select></label><label for="opp-filter-text">Filtrar nome ou ação<input id="opp-filter-text" type="search" autocomplete="off" placeholder="Contato, ação ou oportunidade…"></label></div><p id="opp-count" class="muted" aria-live="polite"></p><div id="opp-board" class="opportunity-board"></div>`;
  const filter=()=>renderOpportunityBoard(board);
  for(const id of ['opp-filter-kind','opp-filter-status','opp-filter-text'])$(id).addEventListener('input',filter);
@@ -166,11 +190,12 @@ async function opportunitiesView(){
 let taskPage=0,taskStatus='all',taskQuery='',taskRenderSequence=0;
 const TASK_PAGE_SIZE=30;
 async function tasksView(){
+ const navToken=navigationSequence;
  const renderId=++taskRenderSequence;
  const query=new URLSearchParams({limit:String(TASK_PAGE_SIZE),offset:String(taskPage*TASK_PAGE_SIZE),status:taskStatus,q:taskQuery});
  const data=await api('/api/tasks/page?'+query.toString());
  // A response from a page we have already left may not replace another view.
- if(tab!=='tasks'||renderId!==taskRenderSequence)return;
+ if(!isCurrentNavigation('tasks',navToken)||renderId!==taskRenderSequence)return;
  if(taskPage>0&&data.total>0&&!data.items.length){taskPage=0;await tasksView();return}
  const options=[{value:'all',label:'Todas'},{value:'open',label:'Abertas'},
                 {value:'blocked',label:'Bloqueadas'},{value:'done',label:'Concluídas'}];
@@ -209,6 +234,7 @@ function noteRow(note,sourceLabel=''){
  </article>`;
 }
 async function notesView(focusId=null){
+ const navToken=navigationSequence;
  const requestId=++notesRenderSequence;
  const offset=notesPage*NOTES_PAGE_SIZE;
  const query=new URLSearchParams({limit:String(NOTES_PAGE_SIZE),offset:String(offset)});
@@ -216,7 +242,7 @@ async function notesView(focusId=null){
    api('/api/notes/page?'+query.toString()),
    focusId?api('/api/notes/'+encodeURIComponent(focusId)):Promise.resolve(null)
  ]);
- if(requestId!==notesRenderSequence||tab!=='notes')return;
+ if(requestId!==notesRenderSequence||!isCurrentNavigation('notes',navToken))return;
  if(data.total>0&&!data.items.length&&notesPage>0){notesPage=0;await notesView(focusId);return}
  const totalPages=Math.max(1,Math.ceil(data.total/NOTES_PAGE_SIZE));
  const list=data.items.map(n=>noteRow(n)).join('');
@@ -236,7 +262,9 @@ async function notesView(focusId=null){
 }
 let eventWindow='week';
 async function eventsView(){
+ const navToken=navigationSequence;
  const data=await api('/api/events');
+ if(!isCurrentNavigation('events',navToken))return;
  const today=new Date();today.setHours(0,0,0,0);
  const weekEnd=new Date(today);weekEnd.setDate(weekEnd.getDate()+7);
  const selected=data.filter(x=>eventWindow==='all'||(new Date(x.start_at)>=today&&(eventWindow==='today'?new Date(x.start_at).toDateString()===today.toDateString():new Date(x.start_at)<weekEnd)));
@@ -245,7 +273,8 @@ async function eventsView(){
  const content=selected.map(x=>`<article id="events-item-${safe(x.id)}" class="item"><div class="item-info"><strong>${safe(x.title)}</strong><small>${dateTime(x.start_at)} até ${dateTime(x.end_at)}</small><small>${x.project_id?'Vinculado a projeto · ':''}${x.contact_id?'Vinculado a contato':''}</small></div><div class="row-actions">${badge(x.status,x.status==='confirmed'?'good':'warn')}<button class="mini" data-do="edit-event" data-id="${safe(x.id)}">Editar</button><button type="button" class="mini" data-do="event-transcripts" data-id="${safe(x.id)}" aria-expanded="false">Transcrições</button></div></article><section class="transcript-context" id="event-transcripts-${safe(x.id)}" hidden></section>`).join('');
  $('content').innerHTML=`<div class="section-head"><p class="muted">Eventos locais; horários confirmados não podem se sobrepor.</p><button class="primary" data-do="add-event">+ Novo evento</button><button type="button" class="mini" data-do="availability-open">Horários livres</button></div>${switcher}${panel('Agenda local',selected.length?`<div class="list">${content}</div>`:blank('Nenhum compromisso neste período.'))}`;
 }
-async function automationsView(){const data=await api('/api/automations'),runs=await api('/api/automation-runs'),health=await api('/api/automation-health');
+async function automationsView(){const navToken=navigationSequence;const data=await api('/api/automations'),runs=await api('/api/automation-runs'),health=await api('/api/automation-health');
+ if(!isCurrentNavigation('automations',navToken))return;
  const cards=data.map(x=>{const enabled=x.status==='available';const c=x.settings||{};return `<section class="panel automation-card ${enabled?'':'disabled'}"><header>${badge(x.atlas)} ${badge(enabled?'Disponível':'Planejada',enabled?'good':'')}</header><h2>${safe(x.name)}</h2><p>${safe(x.description)}</p><small class="muted">Motor: ${safe(x.engine)} · risco: ${safe(x.risk)}</small>${enabled?`<footer><label><input id="autoEnabled" type="checkbox" ${c.enabled?'checked':''}> Ativa</label><label for="autoDays">Dias <input id="autoDays" type="number" min="1" max="365" value="${c.threshold_days}"></label></footer><footer><button class="mini" data-do="save-auto">Salvar</button><button class="primary" data-do="run-auto">Executar agora</button></footer><small class="muted">Última execução: ${c.last_run_at?dateTime(c.last_run_at):'nunca'}</small>`:''}</section>`}).join('');
  const history=runs.length?`<div class="list">${runs.slice(0,10).map(x=>`<div class="item"><div class="item-info"><strong>${safe(x.code)}</strong><small>${dateTime(x.executed_at)} · ${x.scanned} analisadas, ${x.created} alertas novos</small></div>${badge(x.status)}</div>`).join('')}</div>`:blank('Ainda não existem execuções.');
  $('content').innerHTML=`<p class="intro">Escolha, configure e teste automações. O n8n permanece opcional e pode ser habilitado depois.</p>${panel('Estado do agendador',`<p>${health.scheduler_enabled?'Agendador local habilitado':'Agendador local desativado'} · última checagem: ${health.last_check_at?dateTime(health.last_check_at):'ainda não realizada'}</p>${health.last_failure_type?`<p role="alert">Falha detectada: ${safe(health.last_failure_type)} · ${dateTime(health.last_failure_at)}</p>`:''}`)}<div class="cards">${cards}</div>${panel('Histórico de execução',history)}<div class="note">O n8n pode ser iniciado separadamente por Docker. O arquivo de workflow opcional está no pacote do projeto. Nenhuma automação deste piloto envia mensagens a terceiros.</div>`;

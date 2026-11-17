@@ -47,3 +47,36 @@ def test_local_slot_projection_dedup_and_boundaries():
     available=calculate_slots(windows,events,day,30,30,0,datetime(2026,11,12,tzinfo=timezone.utc))
     assert [s['local_start'][11:16] for s in available]==['09:00','10:00','10:30']
     assert all(s['start_at'].endswith('+00:00') for s in available)
+
+
+def test_ascii_only_clock_validation_and_boundary_values():
+    """Unicode numerals (², Arabic-Indic) must not reach an unhandled int()."""
+    from hub.availability import valid_time
+    assert valid_time('00:00')
+    assert valid_time('23:59')
+    for invalid in ('0²:00', '٠١:30', '24:00', '09:60', '0:00',
+                    '12:0', '12:000', '12-30', '１２:30', '99:99'):
+        assert not valid_time(invalid), invalid
+
+
+def test_availability_extreme_date_and_unicode_return_422_not_500(tmp_path):
+    from datetime import date
+    app=create_app(str(tmp_path/'edge.db'),password_hash=hash_password('Senha-de-teste-sintetica'),
+                   session_secret='Q'*48,scheduler=False)
+    with TestClient(app) as c:
+        assert c.post('/api/login',json={'password':'Senha-de-teste-sintetica'}).status_code==200
+        csrf={'X-CSRF-Token':c.get('/api/session').json()['csrf']}
+        # Valid ISO date, but day + 1 would overflow without explicit handling.
+        result=c.get('/api/availability/slots',params={'day':date.max.isoformat()})
+        assert result.status_code==422,result.text
+        assert 'intervalo' in result.json()['detail']
+        # No change to the stored schedule on invalid windows.
+        for invalid in ('0²:00','٠١:30'):
+            response=c.post('/api/availability/windows',headers=csrf,
+                json={'weekday':0,'start_time':invalid,'end_time':'12:00'})
+            assert response.status_code==422,response.text
+        assert c.get('/api/availability/windows').json()==[]
+        # Expected valid canonical boundary formats continue working.
+        valid=c.post('/api/availability/windows',headers=csrf,
+                     json={'weekday':0,'start_time':'00:00','end_time':'23:59'})
+        assert valid.status_code==201,valid.text

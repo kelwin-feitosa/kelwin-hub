@@ -16,8 +16,11 @@ LOCAL_ZONE=ZoneInfo('America/Sao_Paulo')
 
 
 def valid_time(s: str) -> bool:
-    return bool(len(s)==5 and s[2]==':' and s[:2].isdigit() and s[3:].isdigit()
-                and 0<=int(s[:2])<=23 and 0<=int(s[3:])<=59)
+    # isdigit() accepts Unicode numerals that int() cannot parse (e.g. ²).
+    # Only canonical ASCII HH:MM is accepted by the persisted window format.
+    return bool(len(s)==5 and s.isascii() and s[2]==':' and
+                s[:2].isdigit() and s[3:].isdigit() and
+                0<=int(s[:2])<=23 and 0<=int(s[3:])<=59)
 
 
 def minutes(value: str) -> int:
@@ -102,6 +105,10 @@ def register_availability(app: FastAPI,store:Store,require_login):
             if requested.isoformat()!=day:raise ValueError('Data inválida')
         except (ValueError,TypeError):
             raise HTTPException(422,'Data no formato AAAA-MM-DD')
+        # The response queries [day, day+1). date.max has no successor;
+        # reject it instead of leaking an unhandled OverflowError (HTTP 500).
+        if requested == date.max:
+            raise HTTPException(422,'Data fora do intervalo suportado')
         if not (15<=duration<=180 and 5<=step<=60 and 0<=buffer<=60):
             raise HTTPException(422,'Duração 15–180, passo 5–60 e intervalo 0–60 minutos')
         day_start=datetime.combine(requested,datetime.min.time(),LOCAL_ZONE).astimezone(timezone.utc)

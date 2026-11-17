@@ -21,7 +21,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from .security import csrf_token, hash_password, sign_session, validate_session, verify_password, SESSION_SECONDS
 from .storage import Store, now_utc, new_id, rows, record
 from .automation import TEMPLATES, safe_run_stale
-from .workspace import load_workspace
+from .workspace import load_workspace, load_workspace_group
 from .search import search as search_records
 from .project_context import load_project_context
 from .nexo_context import load_opportunity_context
@@ -368,8 +368,18 @@ def create_app(database_path: str | None = None, *, password_hash: str | None = 
         return load_suggestions(store)
 
     @app.get('/api/workspace')
-    def workspace(_=Depends(require_login)):
-        return load_workspace(store)
+    def workspace(per_group: int = Query(12, ge=1, le=50),
+                  _=Depends(require_login)):
+        return load_workspace(store, per_group=per_group)
+
+    @app.get('/api/workspace/groups/{group}')
+    def workspace_group(group: str, offset: int = Query(0, ge=0, le=5000),
+                        limit: int = Query(30, ge=1, le=100),
+                        _=Depends(require_login)):
+        try:
+            return load_workspace_group(store, group, offset=offset, limit=limit)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
 
     @app.get('/api/search')
     def universal_search(q: str, _=Depends(require_login)):

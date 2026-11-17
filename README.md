@@ -260,3 +260,9 @@ Os testes cobrem 121 notas fictícias, paginação, vínculo, autorização e ed
 As visualizações de Mesa, Projetos, Contatos, Oportunidades, Tarefas, Notas, Agenda e Automações verificam um contador global de navegação antes de substituir o conteúdo. Uma resposta ou erro de uma tela abandonada não pode sobrescrever a tela atual, inclusive quando o usuário volta rapidamente à mesma seção. Os contextos carregados em paralelo ignoram regiões já removidas da interface.
 
 O E2E Chromium atrasa deliberadamente a resposta de Projetos, navega para Explorar e solta tanto uma resposta bem-sucedida quanto uma falha: o catálogo permanece intacto. Nenhuma alteração no SQLite, autenticação, cookies ou navegação persistida em URL.
+
+## Missão 18.2 — Busca global com retenção limitada de resultados (H17-02)
+
+A busca mantém a mesma semântica de resultados, ordenação, ranking, Unicode e substrings; o algoritmo agora percorre o cursor SQLite sem construir um dicionário para cada registro não correspondente e mantém no máximo os `per_kind` melhores resultados por tipo em um heap (por padrão, oito). A normalização de textos ASCII usa um caminho rápido equivalente a NFKD + `casefold`. Não foram criados índices persistentes, migrações, serviços externos ou novas dependências.
+
+**Verificação diferencial:** `tests/test_search_equivalence.py` compara diretamente a saída do algoritmo anterior, preservado em `scripts/benchmark_search.py`, à nova implementação para termos com acentos, substrings, combinações e caracteres especiais. O script também executa benchmarks com os mesmos 7.000 registros fictícios e as mesmas consultas, medindo p50/p95 **de funções Python**, sem extrapolar para navegador ou carga HTTP. O benefício esperado é principalmente reduzir alocações de memória em pesquisas com muitos resultados; otimizações adicionais de tempo e FTS5 exigem equivalência e ganho medidos antes da adoção.

@@ -8,7 +8,7 @@ WORKFLOWS=Path(__file__).resolve().parents[1]/'.github'/'workflows'
 def test_workflow_actions_are_immutable_verified_commit_references():
     for filename in ('quality.yml','browser.yml','a11y.yml','security-audit.yml','codeql.yml'):
         content=(WORKFLOWS/filename).read_text(encoding='utf-8')
-        references=re.findall(r'^\s*- uses:\s*([^\s#]+)',content,flags=re.MULTILINE)
+        references=re.findall(r'^\s*(?:-\s*)?uses:\s*([^\s#]+)',content,flags=re.MULTILINE)
         assert references,filename
         assert all(re.fullmatch(r'(?:actions/[a-z0-9-]+|github/codeql-action/(?:init|analyze))@[0-9a-f]{40}',ref)
                    for ref in references), (filename,references)

@@ -95,6 +95,10 @@ class Store:
         # New private data directories and files must never start world-readable.
         # Existing databases are chmod'd in place without replacing their contents.
         db_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        # Align startup with preflight: a symlink at the immediate data
+        # directory can redirect database and WAL/SHM files unexpectedly.
+        if db_path.parent.is_symlink():
+            raise RuntimeError('Diretório do banco não pode ser um link simbólico')
         if db_path.is_symlink():
             raise RuntimeError('Banco SQLite não pode ser um link simbólico')
         # WAL/SHM live beside the DB; a group/world-writable directory allows

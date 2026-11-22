@@ -46,8 +46,10 @@ def timestamp(value: str | None) -> str | None:
         if parsed.tzinfo is None:
             parsed = parsed.replace(tzinfo=LOCAL_TZ)
         return parsed.astimezone(timezone.utc).isoformat(timespec='seconds')
-    except ValueError:
-        raise HTTPException(422, 'Data ISO inválida')
+    except (ValueError, OverflowError) as exc:
+        # Valid ISO wall times at the extreme supported years can overflow
+        # datetime when converted to UTC. Return a client error, not HTTP 500.
+        raise HTTPException(422, 'Data ISO inválida ou fora do intervalo suportado') from exc
 
 
 def money(value: str | None) -> int | None:

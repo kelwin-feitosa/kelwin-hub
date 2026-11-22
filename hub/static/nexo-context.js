@@ -64,7 +64,7 @@ window.KelwinNexo = (() => {
       if (!button) return;
       const {nexoKind: kind, nexoId: id} = button.dataset;
       if (!['projects', 'opportunities'].includes(kind)) return;
-      showTab(kind, id);
+      showTab(kind, id).catch(error => notify('Erro ao navegar: ' + error.message));
     });
   }
   window.addEventListener('DOMContentLoaded', init);

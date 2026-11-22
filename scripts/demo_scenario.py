@@ -18,7 +18,7 @@ def demo(path:Path):
         db.execute('INSERT INTO projects VALUES (?,?,?,?,?)',(project,'Projeto de demonstração','trabalho','active',previous))
         db.execute('INSERT INTO contacts VALUES (?,?,?,?,?,?,?,?)',(cid,'Ana Exemplo','Empresa fictícia','ana@example.test','','business','demo',previous))
         db.execute('INSERT INTO opportunities VALUES (?,?,?,?,?,?,?,?,?,?,?)',(opp,cid,'Site institucional fictício','service','waiting',150000,'Verificar resposta',None,previous,previous,previous))
-        db.execute('INSERT INTO tasks VALUES (?,?,?,?,?,?,?,?,?,?)',(task,'Preparar orçamento fictício',project,opp,'open',2,None,'Conferir escopo',None,previous))
+        db.execute('''INSERT INTO tasks (id,title,project_id,opportunity_id,status,priority,due_at,next_action,completed_at,created_at) VALUES (?,?,?,?,?,?,?,?,?,?)''',(task,'Preparar orçamento fictício',project,opp,'open',2,None,'Conferir escopo',None,previous))
     run_stale(store)
     print('Demonstração criada em',path,'(dados inteiramente fictícios)')
 

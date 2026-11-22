@@ -1,8 +1,8 @@
 # Kelwin Hub — central pessoal local-first
 
-> **Estado verificado em 12/11/2026:** a `main` chegou à **NEXO 14.0** (PRs #22–#25), com Mesa, navegação ÓRBITA, contextos integrados, sugestões locais explicáveis, agenda e revisão humana de reuniões. O código usa **Python/FastAPI + SQLite + HTML/CSS/JS nativos**, por decisão consolidada. O núcleo continua **local-first**, sem dependência de serviços externos. A versão 1.0 **ainda não está homologada**; avaliação humana, instalação em hardware real e auditoria independente permanecem pendentes. A fonte canônica de decisões é `Kelwin_Hub_Especificacao_Requisitos.md` da Biblioteca do ChatGPT.
+> **Estado confirmado no GitHub em 21/11/2026 (commit `b8cf23f`):** o Kelwin Hub já incorpora as Missões 16.0, 18.1 e 18.2 e as correções de CI/UI #42 e #45. Stack mantida: Python/FastAPI + SQLite + HTML/CSS/JS nativos; aplicação pessoal local-first. A `main` está protegida e os seis checks do GitHub passaram naquele SHA. **O repositório está público no GitHub**, o que não torna a aplicação uma hospedagem pública ou multiusuário. A v1.0 ainda não está homologada no equipamento pessoal; recuperação, usabilidade e aceite humano continuam pendentes. Verifique o commit atual e o documento canônico antes de assumir que este retrato permanece vigente.
 
-O Hub é uma central pessoal privada para projetos, tarefas, contatos, oportunidades, agenda e alertas automáticos. Prioriza utilidade antes de infraestrutura complexa. Executa no seu Pop!_OS; os dados são armazenados em SQLite local. n8n é **opcional**, usado apenas quando o fluxo justificar.
+O Hub é uma central pessoal de uso privado para projetos, tarefas, contatos, oportunidades, agenda e alertas automáticos. Prioriza utilidade antes de infraestrutura complexa. Executa no seu Pop!_OS; os dados são armazenados em SQLite local. n8n é **opcional**, usado apenas quando o fluxo justificar.
 
 ## O que está funcionando
 

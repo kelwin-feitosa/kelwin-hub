@@ -25,8 +25,19 @@ jobs:
           node-version: '22'
       - name: Install with test and backup extras
         run: python -m pip install -e '.[test,backup]'
-      - name: Regression, integration and backup tests
-        run: python -m pytest -q --disable-warnings
+      - name: Regression, integration and backup tests with Python branch coverage
+        run: python -m coverage run --branch --source=hub -m pytest -q --disable-warnings
+      - name: Report honest Python coverage and generate Cobertura XML
+        run: |
+          python -m coverage report -m
+          python -m coverage xml -o coverage.xml
+      - name: Retain Python coverage report for future Sonar CI-based integration
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        with:
+          name: python-coverage-xml
+          path: coverage.xml
+          if-no-files-found: error
+          retention-days: 7
       - name: Rehearse encrypted backup, upgrade and restore on synthetic v7 DB
         run: python scripts/rehearse_upgrade.py
       - name: Synthetic HTTP latency and payload evidence (informational only)

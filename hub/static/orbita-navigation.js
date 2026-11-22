@@ -92,7 +92,7 @@ window.KelwinNav = (() => {
     document.getElementById('create-open').addEventListener('click', () => {
       window.openSearch();
       search.value = 'criar';
-      window.doSearch();
+      window.doSearch().catch(error => console.error('Falha na busca:', error));
     });
     // The existing result handler handles records and destinations; extend it
     // only for registered, local creation commands.
@@ -100,7 +100,7 @@ window.KelwinNav = (() => {
       const button = event.target.closest('button[data-do]');
       if (!button || !actions.some(item => item.action === button.dataset.do)) return;
       window.closeSearch();
-      window.handleAction(button);
+      window.handleAction(button).catch(error => console.error('Falha na ação:', error));
     });
     search.addEventListener('keydown', event => {
       if (!['ArrowDown', 'Enter'].includes(event.key)) return;
@@ -131,7 +131,9 @@ window.KelwinNav = (() => {
       const dest = window.location.hash.slice(1);
       if (!directory.some(item => item.tab === dest)) return;
       navigatingBack = true;
-      Promise.resolve(window.showTab(dest)).finally(() => { navigatingBack = false; });
+      Promise.resolve().then(() => window.showTab(dest))
+        .catch(error => { console.error('Falha ao voltar:', error); window.notify?.('Não foi possível navegar.'); })
+        .finally(() => { navigatingBack = false; });
     });
   }
   window.addEventListener('DOMContentLoaded', init);
